@@ -1,0 +1,22 @@
+# Email Automation Triggers
+
+triggers:
+  - name: send_email_on_status_change
+    description: Send email when Kanban card moves to "sent"
+    
+    watch:
+      directory: "emails/"
+      frontmatter_field: status
+      from_value: draft
+      to_value: sent
+    
+    instructions: |
+      When a file's status changes from "draft" to "sent":
+      1. Extract recipient from `to:` frontmatter field
+      2. Extract subject from `subject:` frontmatter field
+      3. Take file content as email body
+      4. Send email via $gmail
+      5. Update frontmatter: sent_date: [current timestamp]
+      6. Move file to emails/sent/[YYYY]/[MM]/ folder
+    
+    priority: 10

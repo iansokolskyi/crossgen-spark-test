@@ -1,0 +1,36 @@
+# Spark Main Configuration
+version: 1.0
+
+daemon:
+  watch:
+    patterns: ["**/*.md"]
+    ignore: [".git/**", ".obsidian/**", ".spark/logs/**"]
+  debounce_ms: 300
+  status_indicators:
+    enabled: true
+    processing: "⏳"
+    completed: "✅"
+    error: "❌"
+
+ai:
+  provider: claude
+  claude:
+    model: claude-3-5-sonnet-20241022
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 4096
+
+mcp:
+  servers:
+    gmail:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-gmail"]
+      enabled: true
+
+logging:
+  level: info
+  file: .spark/logs/daemon.log
+
+features:
+  slash_commands: true
+  chat_assistant: true
+  trigger_automation: true

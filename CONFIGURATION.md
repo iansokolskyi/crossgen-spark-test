@@ -1,0 +1,657 @@
+# Spark Configuration Specification
+
+**Status:** Specification Phase  
+**Date:** 2024
+
+---
+
+## Overview
+
+Spark configuration lives entirely in `.spark/` directory. Three types of config:
+
+1. **Main Config** - `.spark/config.yaml` - Core daemon and AI settings
+2. **Trigger Config** - `.spark/triggers/*.yaml` - What events trigger SOPs
+3. **Integration Config** - `.spark/integrations/*/config.yaml` - MCP server references
+
+---
+
+## Main Configuration
+
+**File:** `.spark/config.yaml`
+
+```yaml
+# Spark Main Configuration
+version: 1.0
+
+# Daemon settings
+daemon:
+  # What files to watch
+  watch:
+    patterns:
+      - "**/*.md"
+    ignore:
+      - ".git/**"
+      - ".obsidian/**"
+      - "node_modules/**"
+      - ".spark/logs/**"
+  
+  # File change debouncing
+  debounce_ms: 300
+  
+  # How to show status in files
+  status_indicators:
+    enabled: true
+    pending: ""           # No indicator
+    processing: "⏳"
+    completed: "✅"
+    error: "❌"
+    warning: "⚠️"
+  
+  # Result writing behavior
+  results:
+    mode: auto           # auto | inline | separate
+    inline_max_chars: 500
+    separate_folder: "reports/"
+    add_blank_lines: true
+
+# AI provider configuration
+ai:
+  provider: claude       # claude | openai | local
+  
+  # Claude settings
+  claude:
+    model: claude-3-5-sonnet-20241022
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 4096
+    temperature: 0.7
+  
+  # Fallback provider (optional)
+  fallback:
+    enabled: false
+    provider: openai
+
+# MCP (Model Context Protocol) integrations
+# Note: MCP servers must be installed separately
+# Spark only references them, doesn't manage installation
+mcp:
+  # List of available MCP servers
+  servers:
+    gmail:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-gmail"]
+      enabled: true
+    
+    quickbooks:
+      command: "mcp-quickbooks"
+      enabled: true
+    
+    stripe:
+      command: "mcp-stripe"
+      enabled: false
+  
+  # Timeout for MCP calls
+  timeout_ms: 30000
+  
+  # Retry failed calls
+  retry:
+    enabled: true
+    max_attempts: 3
+    backoff_ms: 1000
+
+# Logging
+logging:
+  level: info           # debug | info | warn | error
+  file: .spark/logs/daemon.log
+  max_size_mb: 10
+  max_files: 5
+  
+  # Log to console as well
+  console: true
+
+# Notifications
+notifications:
+  file: .spark/notifications.jsonl
+  max_entries: 1000     # Auto-cleanup old entries
+  
+  # Notification types to show
+  show:
+    - success
+    - error
+    - warning
+    # - info  (commented out = don't show info)
+
+# Features (enable/disable)
+features:
+  slash_commands: true
+  chat_assistant: true
+  sop_automation: true
+  frontmatter_triggers: true
+```
+
+---
+
+## Trigger Configuration
+
+**File:** `.spark/triggers/frontmatter.yaml`
+
+This defines what frontmatter changes trigger which SOPs.
+
+```yaml
+# Frontmatter Triggers
+# Format: Watch for field changes and execute SOPs
+
+triggers:
+  # Email automation
+  - name: email_send
+    description: Send email when status changes to send_this_out
+    field: email_status
+    values: 
+      - send_this_out
+      - send_now
+    sop: email-automation.md
+    priority: 10
+  
+  # Email scheduling
+  - name: email_schedule
+    description: Schedule email for later
+    field: email_status
+    values:
+      - schedule
+    sop: email-scheduling.md
+    priority: 9
+  
+  # Task assignment to AI agents
+  - name: task_assigned
+    description: When task assigned to AI agent
+    field: assigned_to
+    pattern: "@*"           # Any value starting with @
+    sop: task-assignment.md
+    priority: 8
+  
+  # Task completion workflow
+  - name: task_completed
+    description: When task marked complete
+    field: task_status
+    values:
+      - completed
+      - done
+    sop: task-completion.md
+    priority: 7
+  
+  # Invoice processing
+  - name: invoice_created
+    description: New invoice detected
+    field: document_type
+    values:
+      - invoice
+    sop: invoice-processing.md
+    priority: 10
+  
+  # Invoice sent
+  - name: invoice_sent
+    description: Invoice sent to client
+    field: invoice_status
+    values:
+      - sent
+    sop: invoice-tracking.md
+    priority: 5
+  
+  # Generic status change (catches all)
+  - name: status_change
+    description: Log any status field change
+    field: "*_status"      # Any field ending in _status
+    pattern: "*"           # Any value
+    sop: status-logger.md
+    priority: 1            # Low priority - runs last
+
+# Trigger execution rules
+execution:
+  # If multiple triggers match, what to do?
+  mode: all              # all | first | highest_priority
+  
+  # Run triggers in priority order
+  sort_by: priority
+  
+  # Allow same SOP to run multiple times from different triggers
+  allow_duplicate_sops: false
+  
+  # Timeout for SOP execution
+  timeout_ms: 60000
+  
+  # What to do on error
+  on_error: continue     # continue | stop | retry
+```
+
+### Trigger Matching Rules
+
+**Exact match:**
+```yaml
+field: email_status
+values: [send_this_out]
+```
+Matches: `email_status: send_this_out`  
+Doesn't match: `email_status: send_later`
+
+**Pattern match:**
+```yaml
+field: assigned_to
+pattern: "@*"
+```
+Matches: `assigned_to: @betty`, `assigned_to: @legal`  
+Doesn't match: `assigned_to: john`
+
+**Wildcard field:**
+```yaml
+field: "*_status"
+pattern: "*"
+```
+Matches: `email_status: anything`, `task_status: anything`, `invoice_status: anything`
+
+**Priority:**
+- Higher number = higher priority
+- If mode is `first`, only highest priority runs
+- If mode is `all`, runs in priority order
+
+---
+
+## File Pattern Triggers
+
+**File:** `.spark/triggers/patterns.yaml`
+
+This defines file/folder patterns that trigger SOPs.
+
+```yaml
+# Pattern Triggers
+# Watch for file creation, modification, deletion in specific patterns
+
+triggers:
+  # New invoice files
+  - name: new_invoice
+    description: New file in invoices folder
+    pattern: "invoices/**/*.md"
+    event: created
+    sop: invoice-processing.md
+    priority: 10
+  
+  # Contract modifications
+  - name: contract_updated
+    description: Contract file modified
+    pattern: "contracts/**/*.md"
+    event: modified
+    sop: contract-review.md
+    priority: 8
+  
+  # Client folder created
+  - name: new_client
+    description: New client folder created
+    pattern: "clients/*/"
+    event: created
+    sop: client-onboarding.md
+    priority: 9
+  
+  # Meeting notes
+  - name: meeting_notes
+    description: New meeting notes
+    pattern: "meetings/*/notes.md"
+    event: created
+    sop: meeting-followup.md
+    priority: 5
+
+# Pattern matching rules
+matching:
+  # Case sensitive
+  case_sensitive: false
+  
+  # Follow symlinks
+  follow_symlinks: false
+  
+  # Minimum time between same trigger
+  cooldown_ms: 5000
+```
+
+---
+
+## MCP Integration Configuration
+
+**File:** `.spark/integrations/<service>/config.yaml`
+
+Each MCP service has its own config file.
+
+### Example: Gmail Integration
+
+**File:** `.spark/integrations/gmail/config.yaml`
+
+```yaml
+# Gmail MCP Integration
+name: gmail
+description: Send and receive emails via Gmail
+
+# MCP server connection
+# NOTE: User must install MCP server separately
+# Spark only connects to it, doesn't install it
+mcp:
+  # How to start the MCP server
+  command: npx
+  args:
+    - "-y"
+    - "@modelcontextprotocol/server-gmail"
+  
+  # Server protocol (stdio or HTTP)
+  protocol: stdio
+  
+  # Environment variables needed
+  env:
+    GMAIL_CREDENTIALS: ${GMAIL_CREDENTIALS}
+
+# Available tools from this MCP server
+# This is just documentation - Spark discovers tools via MCP protocol
+tools:
+  - name: send_email
+    description: Send an email
+  
+  - name: search_emails
+    description: Search emails by query
+  
+  - name: get_email
+    description: Get specific email by ID
+
+# Usage examples (for documentation)
+examples:
+  - description: Send an email
+    syntax: "$gmail send email to client@example.com with subject 'Hello'"
+  
+  - description: Search emails
+    syntax: "$gmail find emails from client@example.com"
+```
+
+### Example: QuickBooks Integration
+
+**File:** `.spark/integrations/quickbooks/config.yaml`
+
+```yaml
+# QuickBooks MCP Integration
+name: quickbooks
+description: Access QuickBooks financial data
+
+# MCP server connection
+mcp:
+  command: mcp-quickbooks
+  protocol: stdio
+  env:
+    QUICKBOOKS_TOKEN: ${QUICKBOOKS_TOKEN}
+    QUICKBOOKS_REALM_ID: ${QUICKBOOKS_REALM_ID}
+
+# Available tools
+tools:
+  - name: get_customers
+    description: List all customers
+  
+  - name: get_invoices
+    description: Get invoice data
+  
+  - name: create_invoice
+    description: Create new invoice
+  
+  - name: get_balance_sheet
+    description: Get balance sheet report
+
+# Usage examples
+examples:
+  - description: Get financial summary
+    syntax: "$quickbooks show balance sheet for Q4"
+  
+  - description: List unpaid invoices
+    syntax: "$quickbooks find unpaid invoices"
+```
+
+---
+
+## Configuration Validation
+
+The daemon validates configuration on startup:
+
+### Required Fields
+
+```typescript
+interface ConfigValidation {
+  // Must have at least one AI provider configured
+  ai: {
+    provider: string;
+    [provider]: {
+      api_key_env: string;  // Must be valid env var
+    };
+  };
+  
+  // Watch patterns must be valid globs
+  daemon: {
+    watch: {
+      patterns: string[];  // Must be valid glob patterns
+    };
+  };
+}
+```
+
+### Validation Errors
+
+**Example error output:**
+
+```
+❌ Configuration Error in .spark/config.yaml
+
+Line 23: ai.claude.api_key_env
+  → Environment variable ANTHROPIC_API_KEY not found
+  → Set it in your environment: export ANTHROPIC_API_KEY=sk-...
+
+Line 45: mcp.servers.quickbooks.command
+  → Command 'mcp-quickbooks' not found in PATH
+  → Install the MCP server or disable it in config
+
+Run: spark doctor
+For help: spark config --help
+```
+
+---
+
+## Default Configuration
+
+On first run, Spark generates `.spark/config.yaml` with sensible defaults:
+
+```yaml
+# Auto-generated Spark configuration
+# Edit this file to customize behavior
+
+version: 1.0
+
+daemon:
+  watch:
+    patterns: ["**/*.md"]
+    ignore: [".git/**", ".obsidian/**"]
+  debounce_ms: 300
+  status_indicators:
+    enabled: true
+    processing: "⏳"
+    completed: "✅"
+    error: "❌"
+
+ai:
+  provider: claude
+  claude:
+    model: claude-3-5-sonnet-20241022
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 4096
+
+mcp:
+  servers: {}  # Add MCP servers here
+  timeout_ms: 30000
+
+logging:
+  level: info
+  file: .spark/logs/daemon.log
+
+features:
+  slash_commands: true
+  chat_assistant: true
+  sop_automation: true
+```
+
+---
+
+## Configuration Precedence
+
+If the same setting exists in multiple places:
+
+1. **Command-line flags** (highest priority)
+   ```bash
+   spark --log-level=debug
+   ```
+
+2. **Environment variables**
+   ```bash
+   SPARK_LOG_LEVEL=debug spark
+   ```
+
+3. **`.spark/config.yaml`**
+   ```yaml
+   logging:
+     level: debug
+   ```
+
+4. **Default values** (lowest priority)
+
+---
+
+## MCP Server Discovery
+
+The daemon doesn't install or manage MCP servers. It only:
+
+1. **References them** in config
+2. **Validates they exist** on startup
+3. **Calls them** when `$service` mentioned
+4. **Shows error** if MCP server unavailable
+
+### User Responsibility
+
+Users must:
+- Install MCP servers separately
+- Ensure they're in PATH or specify full command
+- Configure authentication (API keys, OAuth)
+- Test MCP servers work independently
+
+### Spark's Responsibility
+
+Spark only:
+- Parses `$service` mentions
+- Calls configured MCP servers
+- Passes context and arguments
+- Handles responses and errors
+
+---
+
+## Configuration Best Practices
+
+### 1. Use Environment Variables for Secrets
+
+**Bad:**
+```yaml
+ai:
+  claude:
+    api_key: sk-ant-1234567890  # DON'T DO THIS
+```
+
+**Good:**
+```yaml
+ai:
+  claude:
+    api_key_env: ANTHROPIC_API_KEY  # Reference env var
+```
+
+### 2. Disable Unused Features
+
+```yaml
+features:
+  slash_commands: true
+  chat_assistant: true
+  sop_automation: false  # Disable if not using
+```
+
+### 3. Start with Minimal Triggers
+
+Don't create triggers for everything. Start simple:
+
+```yaml
+triggers:
+  # Just one trigger to start
+  - name: email_send
+    field: email_status
+    values: [send_this_out]
+    sop: email-automation.md
+```
+
+Add more as needed.
+
+### 4. Test MCP Servers Independently
+
+Before configuring in Spark, test MCP servers work:
+
+```bash
+# Test Gmail MCP server
+npx -y @modelcontextprotocol/server-gmail
+
+# Test QuickBooks MCP server
+mcp-quickbooks --test
+```
+
+---
+
+## Configuration CLI
+
+The daemon provides CLI for configuration:
+
+```bash
+# Validate configuration
+spark config validate
+
+# Show current configuration
+spark config show
+
+# Edit configuration
+spark config edit
+
+# Test MCP server connection
+spark config test-mcp gmail
+
+# Check system requirements
+spark doctor
+
+# Generate default config
+spark config init
+```
+
+---
+
+## Summary
+
+**Configuration Philosophy:**
+
+1. **Files over API** - All config in YAML files
+2. **Explicit over implicit** - Clear trigger definitions
+3. **User controls installation** - Spark doesn't install MCP servers
+4. **Validation on startup** - Fail fast with helpful errors
+5. **Sensible defaults** - Works out of box with minimal config
+
+**Key Files:**
+
+- `.spark/config.yaml` - Main daemon configuration
+- `.spark/triggers/frontmatter.yaml` - Frontmatter change triggers
+- `.spark/triggers/patterns.yaml` - File pattern triggers
+- `.spark/integrations/*/config.yaml` - MCP server references
+
+**Next Steps:**
+
+Now that configuration is clear, we can spec:
+1. **Command File Format** - What goes in `.spark/commands/*.md`
+2. **Agent File Format** - What goes in `.spark/agents/*.md`
+3. **SOP File Format** - What goes in `.spark/sops/*.md`
+4. **Mention Parser** - How daemon parses complex mention chains
+
+Which should we detail next?

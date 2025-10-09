@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+plugin/dist/
+daemon/dist/
+*.js.map
+
+# OS files
+.DS_Store
+**/.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Environment
+.env
+.env.local
+
+# Obsidian
+example-vault/.obsidian/workspace.json
+example-vault/.obsidian/workspace-mobile.json
+example-vault/.obsidian/hotkeys.json
+example-vault/.obsidian/plugins/*
+!example-vault/.obsidian/plugins/.gitkeep
+example-vault/.trash/
+

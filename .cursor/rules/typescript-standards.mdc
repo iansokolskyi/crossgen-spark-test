@@ -1,0 +1,134 @@
+---
+description: TypeScript coding standards for the Spark project
+---
+
+# TypeScript Coding Standards
+
+## Never Use `any`
+
+**Rule:** Never use the `any` type in TypeScript code for this project.
+
+**Why:**
+- Defeats the purpose of TypeScript
+- Hides bugs and errors
+- Makes refactoring dangerous
+- Reduces code maintainability
+
+**Instead:**
+- Define proper types and interfaces
+- Use union types when multiple types are acceptable
+- Use generics for flexible but type-safe code
+- Use `unknown` if the type is truly unknown (rare cases)
+
+## Handling Circular Dependencies
+
+**Problem:** When two modules import each other's types, you get a circular dependency.
+
+**Solution:** Extract shared types to a common types file.
+
+**Example:**
+
+```typescript
+// ❌ BAD: Circular dependency
+// main.ts
+import { SettingTab } from './settings';
+
+// settings.ts  
+import { MainPlugin } from './main';  // Circular!
+
+// ✅ GOOD: Shared types file
+// types/index.ts
+export interface IMainPlugin { ... }
+export interface ISettings { ... }
+
+// main.ts
+import { IMainPlugin } from './types';
+
+// settings.ts
+import { IMainPlugin } from './types';
+```
+
+## Type Organization
+
+1. **Central Types File:** Keep all shared types in `src/types/index.ts`
+2. **Module-Specific Types:** Keep types only used in one module co-located
+3. **Interface Contracts:** Use interfaces to define contracts between modules
+4. **Export Public Types:** Always export types that might be used elsewhere
+
+## Type Naming Conventions
+
+- **Interfaces:** Prefix with `I` for clarity (e.g., `ISparkPlugin`)
+- **Types:** Use PascalCase (e.g., `PaletteItem`)
+- **Enums:** Use PascalCase (e.g., `NotificationType`)
+- **Generic Parameters:** Single uppercase letter or descriptive name (e.g., `T` or `TItem`)
+
+## Examples from Spark Plugin
+
+### ✅ Correct Pattern
+
+```typescript
+// src/types/index.ts
+import { Plugin } from 'obsidian';
+
+export interface SparkSettings {
+    enablePalette: boolean;
+    enableChat: boolean;
+}
+
+export interface ISparkPlugin extends Plugin {
+    settings: SparkSettings;
+    loadSettings(): Promise<void>;
+    saveSettings(): Promise<void>;
+}
+
+// src/main.ts
+import { ISparkPlugin, SparkSettings } from './types';
+
+export default class SparkPlugin extends Plugin implements ISparkPlugin {
+    settings: SparkSettings;
+    // ...
+}
+
+// src/settings.ts
+import { ISparkPlugin } from './types';
+
+export class SparkSettingTab {
+    plugin: ISparkPlugin;  // Typed, not 'any'
+    // ...
+}
+```
+
+### ❌ Anti-Patterns to Avoid
+
+```typescript
+// Never do this:
+plugin: any;  // ❌ No!
+
+// Or this:
+function process(data: any) { }  // ❌ No!
+
+// Or this:
+const result = response as any;  // ❌ No!
+```
+
+## When Types Seem Difficult
+
+If you find yourself wanting to use `any`:
+
+1. **Stop and think:** What is the actual type?
+2. **Check the library docs:** Most libraries export their types
+3. **Use TypeScript utilities:** `Partial<T>`, `Pick<T>`, `Omit<T>`, etc.
+4. **Create a union:** `string | number` is better than `any`
+5. **Ask for help:** Don't compromise type safety
+
+## Type Safety Benefits
+
+- **Catch bugs at compile time**, not runtime
+- **Better IDE support** with autocomplete and refactoring
+- **Self-documenting code** through type definitions
+- **Safer refactoring** with confidence
+- **Team collaboration** with clear contracts
+
+---
+
+**Remember:** Types are documentation, safety nets, and productivity tools. Use them properly!

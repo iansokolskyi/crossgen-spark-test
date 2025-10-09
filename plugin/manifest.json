@@ -1,0 +1,10 @@
+{
+    "id": "obsidian-spark",
+    "name": "Spark Assistant",
+    "version": "0.1.0",
+    "minAppVersion": "1.6.0",
+    "description": "AI-powered automation with slash commands, chat widget, and intelligent workflows",
+    "author": "Automaze",
+    "authorUrl": "https://automaze.io",
+    "isDesktopOnly": false
+}

@@ -1,0 +1,614 @@
+---
+description: PRD
+alwaysApply: false
+---
+You are processing an email that needs to be sent. Follow these steps:
+
+1. Extract recipient from frontmatter `to:` field
+2. Format the content as professional email using template
+3. Send via $gmail integration
+4. Update frontmatter:
+   - email_status: "sent"
+   - sent_date: [timestamp]
+5. Move file to sent/[date]/
+6. Create follow-up task if deadline mentioned
+```
+
+### Trigger Configuration
+
+The `.spark/triggers/frontmatter.yaml` defines what to watch:
+
+```yaml
+# Frontmatter fields that trigger SOPs
+watched_fields:
+  - field: email_status
+    values: [send_this_out, schedule, draft]
+    sop: email-status.md
+
+  - field: task_status
+    values: [assigned, in_progress, blocked]
+    sop: task-management.md
+
+  - field: invoice_status
+    values: [created, sent, overdue]
+    sop: invoice-workflow.md
+
+  - field: assigned_to
+    pattern: "@*"  # Any @ mention
+    sop: task-assigned.md
+```
+
+## Use Cases: From Simple to Sophisticated
+
+### Level 1: Basic Automation (Slash Commands)
+
+```
+Current document: Messy meeting notes
+Action: /extract-tasks
+Result: 7 tasks created, assigned based on context, added to kanban
+Time saved: 20 minutes → 2 seconds
+```
+
+### Level 2: Intelligent Assistance (Assistant + Mentions)
+
+```
+User: @betty - what's our burn rate?
+Betty: Analyzing @finance/2024/... Your current burn rate is $47K/month
+User: How does that compare to last quarter?
+Betty: Q3 was $52K/month. You've reduced burn by 9.6%
+User: Great, write an email update for investors@company.com
+Betty: Email drafted and ready for review at @drafts/investor-update.md
+```
+
+### Level 3: Autonomous Workflows (Daemon + SOPs)
+
+```
+Scenario: New invoice created in @invoices/
+Daemon detects: New file matching pattern
+Triggers: invoice-created.sop
+Actions executed automatically:
+  ✓ Invoice validated for completeness
+  ✓ Added to $quickbooks
+  ✓ Payment reminder scheduled
+  ✓ Client notified via email
+  ✓ Task created for follow-up
+  ✓ Financial forecast updated
+```
+
+### Level 4: Complex Workflows (Full Platform)
+
+```
+User: I need to onboard a new client
+Assistant: I'll help you through the complete onboarding. What's the client name?
+User: ACME Corp
+Assistant: Creating structure...
+  ✓ Created clients/acme/ folder
+  ✓ Generated contracts/acme-msa.md from template
+  ✓ Set up a customer on $quickbooks
+  ✓ Created onboarding tasks (assigned to @team)
+  ✓ Drafted welcome email
+  ✓ Scheduled kickoff meeting via $calendar
+  ✓ Configured daemon triggers for ACME
+  ✓ Set up weekly report automation
+All items are in your review queue. Shall I send the welcome email?
+```
+
+## Technical Implementation Details
+
+### Command Registry Implementation
+
+Commands are markdown files with structured frontmatter:
+
+```markdown
+---
+# .spark/commands/summarize.md
+id: summarize
+name: Summarize Document
+description: Create a concise summary of the current document
+context: current_file
+output: replace_selection
+---
+
+Create a **$ARGUMENTS** summary of the provided document. Focus on:
+- Key decisions and outcomes
+- Action items
+- Important dates
+- Critical insights
+
+Maintain the document's tone and technical accuracy.
+```
+
+### Agent Configuration
+
+Agents define specialized AI personas:
+
+```markdown
+---
+# .spark/agents/betty.md
+name: Betty
+role: Senior Accountant & Financial Analyst
+expertise:
+  - Financial reporting
+  - Tax compliance
+  - Budget analysis
+  - QuickBooks integration
+tools:
+  - quickbooks
+  - stripe
+  - excel
+context_folders:
+  - finance/
+  - invoices/
+  - reports/financial/
+---
+
+You are Betty, a senior accountant with 20 years of experience. You are
+meticulous, detail-oriented, and always ensure compliance with regulations.
+
+When analyzing financial data:
+1. Always cross-reference multiple sources
+2. Flag any discrepancies over $100
+3. Provide both summary and detailed views
+4. Include relevant tax implications
+5. Suggest optimization opportunities
+```
+
+### MCP Integration Configuration
+
+External service connections via MCP protocol:
+
+```json
+{
+  "service": "gmail",
+  "version": "1.0",
+  "authentication": {
+    "type": "oauth2",
+    "scopes": ["gmail.send", "gmail.readonly"]
+  },
+  "endpoints": {
+    "send": "/gmail/v1/send",
+    "fetch": "/gmail/v1/messages",
+    "search": "/gmail/v1/search"
+  },
+  "rate_limits": {
+    "requests_per_minute": 60
+  },
+  "error_handling": {
+    "retry_attempts": 3,
+    "backoff_multiplier": 2
+  }
+}
+```
+
+## The Game-Changing Differentiator
+
+### Without Spark Assistant (Current State)
+
+Building an email plugin:
+
+- Day 1-2: Create Obsidian plugin structure
+- Day 3-4: Build Gmail integration
+- Day 5-6: Implement AI processing
+- Day 7-8: Create command system
+- Day 9-10: Add UI and error handling
+- **Total: 10 days per feature**
+
+### With Spark Assistant (Future State)
+
+Building an email plugin:
+
+- Hour 1: Create `$gmail` MCP configuration
+- Hour 2-4: Define email-specific commands
+- Hour 4-8: Test and refine
+- **Total: 1 day per feature**
+
+**This 10x productivity gain applies to every single feature you build.**
+
+## Implementation Strategy
+
+### Phase 1: Foundation
+
+- Core dual interface system (slash commands + assistant)
+- Basic mention parsing (@, /)
+- Initial command set (10-15 essential commands)
+- Status bar integration for feedback
+
+### Phase 2: Intelligence
+
+- Persistent conversation memory
+- Spark Daemon implementation
+- First 5 SOPs for common workflows
+- Basic trigger system (frontmatter changes)
+
+### Phase 3: Automation
+
+- Full trigger configuration system
+- Advanced mention types ($, #)
+- First three personas (betty, legal, analyst)
+- MCP framework for integrations
+
+### Phase 4: Polish & Optimization
+
+- Performance optimizations for large vaults
+- Advanced command chaining
+- Error recovery and logging
+- Documentation and examples
+
+## Success Metrics
+
+### Developer Velocity
+
+- New feature development: 10 days → 1 day
+- Code reuse across features: >80%
+- Time to deploy new command: <5 minutes
+- SOP creation time: <30 minutes
+
+### User Experience (Sean's Dogfooding)
+
+- Daily tool switches: 50+ → <5
+- Workflow completion time: 30 min → 3 min
+- Automation success rate: >95%
+- Manual intervention required: <10%
+
+### System Reliability
+
+- Command execution success: >99%
+- Daemon uptime: >99.9%
+- Integration connectivity: >95%
+- Performance with 10k+ files: <100ms response
+
+## Risk Mitigation
+
+| Risk | Mitigation Strategy |
+| --- | --- |
+| Claude API costs | Implement local LLM fallback option |
+| Large vault performance | Intelligent caching and indexing |
+| Complex trigger conflicts | Deterministic rule precedence |
+| Integration failures | Graceful degradation with queuing |
+| Learning curve | Progressive feature exposure |
+
+## Why This Must Be Built First
+
+Every alternative path leads to failure:
+
+**Building features individually:**
+
+- 10x longer development time
+- Inconsistent user experience
+- No shared context
+- Maintenance nightmare
+- Weak market position
+
+**Continuing with current hackish approach:**
+
+- Fragile dependencies on third-party plugins
+- No guarantee of long-term stability
+- Difficult to scale or replicate
+- Technical debt accumulation
+
+**Building Spark Assistant first:**
+
+- ✅ Every feature inherits its capabilities
+- ✅ Consistent, powerful user experience
+- ✅ Shared context and memory
+- ✅ 10x faster feature development
+- ✅ Stable, maintainable architecture
+
+## Timeline
+
+### Foundation Phase
+
+- Core dual interface system
+- Basic mention parsing
+- Initial command set
+- Status bar integration
+
+### Enhancement Phase
+
+- Spark Daemon implementation
+- SOP system
+- Trigger configuration
+- Persistent conversation memory
+
+### Integration Phase
+
+- MCP framework
+- First three personas
+- External service connections
+- Advanced mention types
+
+### Optimization Phase
+
+- Performance tuning
+- Error handling
+- Advanced workflows
+- Comprehensive documentation
+
+## Conclusion
+
+Spark Assistant isn't just a feature - it's the platform that makes everything else possible. It solves the fundamental problems that have prevented AI from truly transforming business operations.
+
+By consolidating everything in `.spark/` with intelligent symlinking to `.claude/`, we create a clean, maintainable architecture. The dual interface provides flexibility. The daemon enables true automation. The SOP system makes workflows declarative and debuggable.
+
+This is the foundation that enables Sean to:
+
+- Run his business with AI assistance
+- Iterate rapidly on new ideas
+- Build features in days instead of weeks
+- Eventually productize once proven
+
+<aside>
+🔥
+
+**The choice is clear:** 
+Build the foundation properly, and everything else becomes simple.
+
+</aside>
+
+---
+
+# The Spark Ecosystem: Beyond “Plugins”
+
+## Why This Vision Matters Now
+
+Once the Spark Assistant foundation is built (as outlined in the main PRD), the platform naturally evolves beyond a personal automation tool into the "Obsidian App Store" for business automation.
+
+This document outlines what becomes possible after the core system is complete. It demonstrates why building Spark Assistant properly from the start is critical - it's not just solving immediate automation needs, but creating the foundation for an entire ecosystem.
+
+## From Personal System to Platform
+
+### Phase 1: Personal Automation (Dogfooding)
+
+- Custom workflows solving specific pain points
+- Learning what actually works in practice
+- Refining the core system through daily use
+- Building a library of proven automations
+
+### Phase 2: Demand Emerges
+
+The inevitable questions start:
+
+- "How did you automate your entire back office?"
+- "Can I buy your email management system?"
+- "Will this work for my consulting practice?"
+- "Can you help me implement this?"
+
+### Phase 3: Productization
+
+Instead of one-off consulting engagements, proven workflows become "bundles" - packaged automation solutions that install in minutes. Consulting transforms from time-intensive implementation to scalable product sales.
+
+## The Bundle Concept
+
+Bundles are complete business automation solutions, packaged and ready to deploy. Rather than selling individual features or plugins, bundles deliver entire workflows:
+
+**Example: Consulting Practice Bundle**
+
+- Complete email management workflow
+- PRD generation and interview system
+- Client onboarding automation
+- Invoice generation and tracking
+- Project status reporting
+- Task delegation to AI personas
+
+A user installs this bundle, runs a 2-minute configuration wizard, and has a complete consulting business backend running in their Obsidian vault.
+
+## The Transformation Bundles Enable
+
+### For Bundle Creators
+
+**Without Bundles:**
+
+- Build useful automation
+- Share it when asked
+- Spend hours helping with setup
+- Difficult to monetize
+- Doesn't scale
+
+**With Bundles:**
+
+- Build useful automation
+- Package as installable bundle
+- Sell for $199-499
+- Automated installation
+- Passive income stream
+
+### For End Users
+
+**Without Bundles:**
+
+- Need sophisticated automation
+- Hire consultants ($10k+)
+- Weeks of implementation
+- Often doesn't match expectations
+- Requires ongoing support
+
+**With Bundles:**
+
+- Browse solution marketplace
+- Purchase proven bundle ($199)
+- Install in 10 minutes
+- Works immediately
+- Community support available
+
+## The All-Access Model
+
+Following the Setapp model, a monthly "Spark All Access" subscription provides unlimited access to all marketplace bundles:
+
+- **$49-$99/month** for everything
+- Try any bundle without commitment
+- Discover workflows from other industries
+- Always have the latest versions
+- Predictable business expense
+
+**This model benefits everyone:**
+
+- Users explore without risk
+- Developers reach wider audiences
+- Platform generates recurring revenue
+
+## Why Building the Foundation Right Matters
+
+### Technical Requirements for Ecosystem
+
+The bundle marketplace only works if the foundation provides:
+
+1. **Unified Architecture** - Everything in `.spark/` directory
+2. **Consistent Interfaces** - Slash commands and assistant that bundles can rely on
+3. **Mention System** - Universal language for all bundles
+4. **Daemon Infrastructure** - Automated workflows that bundles can configure
+5. **Clean Separation** - Business logic in Spark Core, not scattered across plugins
+
+### Without Proper Foundation
+
+Building features individually creates:
+
+- Incompatible systems that can't share bundles
+- Technical debt preventing ecosystem growth
+- Fragmented user experience
+- No path to marketplace
+
+### With Spark Assistant Foundation
+
+The core system enables:
+
+- Bundles that work instantly
+- Shared infrastructure across all solutions
+- Consistent user experience
+- Natural evolution to marketplace
+
+## Real Bundle Examples
+
+### Legal Practice Automation
+
+**Target:** Small law firms
+**Price:** $399
+**Includes:**
+
+- Contract analysis and review
+- Client intake workflows
+- Billing and time tracking
+- Court filing preparation
+- Compliance checking
+- Integration with LexisNexis, Argos, PACER, etc
+
+### E-commerce Operations
+
+**Target:** Online retailers
+**Price:** $299
+**Includes:**
+
+- Multi-channel order management
+- Inventory synchronization
+- Customer service automation
+- Returns processing
+- Review management
+- Integration with Shopify, Stripe, shipping APIs
+
+### Content Creator Suite
+
+**Target:** YouTubers, bloggers, course creators
+**Price:** $199
+**Includes:**
+
+- Content calendar management
+- Publishing workflows
+- Sponsor communication
+- Analytics tracking
+- Social media scheduling
+- Integration with YouTube, WordPress, ConvertKit
+
+## The Developer Opportunity
+
+### Bundle Development Process
+
+Creating bundles becomes straightforward:
+
+1. **Build solution for specific need**
+2. **Test and refine in production**
+3. **Package as bundle** (commands, SOPs, personas, templates)
+4. **Create setup wizard**
+5. **Submit to marketplace**
+6. **Earn passive income**
+
+### Revenue Potential
+
+A single successful bundle can generate:
+
+- **100 sales/month** at $199 = $19,900/month
+- **Developer keeps 80%** = $15,920/month
+- **Multiple bundles** multiply income
+- **All Access tier** provides baseline revenue
+
+## Competitive Landscape
+
+### Why This Wins
+
+| Aspect | Current Solutions | Spark Ecosystem |
+| --- | --- | --- |
+| **Setup Time** | Days to weeks | 10 minutes |
+| **Cost** | $1,000s in consulting | $199 one-time |
+| **Customization** | Requires developers | Edit markdown files |
+| **Updates** | Manual process | Automatic |
+| **Sharing** | Difficult | One-click install |
+
+### Market Opportunity
+
+- Millions of small businesses need automation
+- No unified platform exists
+- Current tools are fragmented
+- AI makes this possible now
+- First mover advantage
+
+## The Flywheel Effect
+
+1. **Strong Foundation** (Spark Assistant) enables rapid feature development
+2. **Rapid Features** attract power users
+3. **Power Users** create valuable workflows
+4. **Valuable Workflows** become bundles
+5. **Bundles** attract more users
+6. **More Users** create demand for more bundles
+7. **More Bundles** increase platform value
+8. **Platform Value** attracts developers
+9. **Developers** create better bundles
+10. **Better Bundles** accelerate growth
+
+## Timeline to Ecosystem
+
+### Months 1-2: Foundation
+
+Build Spark Assistant with dual interface, mention system, and daemon
+
+### Months 3-6: Dogfooding
+
+Refine through daily use, build initial workflow library
+
+### Months 7-9: Bundle Framework
+
+Create packaging system, installation wizard, registry service
+
+### Months 10-12: Marketplace Launch
+
+Open marketplace with first 10-20 bundles
+
+### Year 2+: Ecosystem Growth
+
+Hundreds of bundles, thousands of users, self-sustaining growth
+
+## Critical Success Factor
+
+The ecosystem vision only becomes reality if the foundation is built correctly from the start. This is why Spark Assistant must be the first priority, built with:
+
+- Robust architecture (not scattered plugins)
+- Unified system (everything in `.spark/`)
+- Consistent interfaces (slash commands + assistant)
+- Extensible design (mention system, SOPs, personas)
+
+Every shortcut taken now becomes a barrier to the ecosystem later.
+
+## Conclusion
+
+The Spark Ecosystem represents the natural evolution of the automation platform. It transforms individual solutions into an entire marketplace of business automation. But this future is only possible with the right foundation.
+
+Building Spark Assistant properly isn't just about immediate needs - it's about creating the platform that enables thousands of businesses to automate their operations, developers to build sustainable businesses, and the entire ecosystem to thrive.
+
+The choice is between building another set of hacky plugins that solve today's problems, or building the foundation for the business automation platform of the future. **The vision is clear. The opportunity is massive. The foundation must be built right.**

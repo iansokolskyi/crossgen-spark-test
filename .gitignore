@@ -36,3 +36,6 @@ example-vault/.obsidian/plugins/*
 !example-vault/.obsidian/plugins/.gitkeep
 example-vault/.trash/
 
+# Example vault
+example-vault/emails/*
+example-vault/README.md

@@ -7,7 +7,74 @@
 
 ## Overview
 
-Spark configuration lives entirely in `.spark/` directory. Three types of config:
+Spark has a **two-layer configuration system** that separates UI concerns from intelligence behavior:
+
+### 1. Plugin Settings (UI Layer)
+- **Location:** `.obsidian/plugins/spark/data.json`
+- **Managed by:** Obsidian Plugin API (automatic)
+- **Scope:** User-specific preferences
+- **Version Control:** No (gitignored)
+- **Controls:** UI features, hotkeys, display options
+
+### 2. Daemon Configuration (Intelligence Layer)
+- **Location:** `.spark/` directory in vault root
+- **Managed by:** User (manual editing)
+- **Scope:** Vault-specific (shared by team)
+- **Version Control:** Yes (committed to repo)
+- **Controls:** AI behavior, triggers, automation
+
+---
+
+## Plugin Settings (UI Preferences)
+
+**File:** `.obsidian/plugins/spark/data.json` (managed by Obsidian)
+
+### Purpose
+Personal UI preferences that don't affect intelligence behavior. Each user of the same vault can have different settings.
+
+### Settings Structure
+
+```typescript
+interface SparkSettings {
+  enablePalette: boolean;    // Show/hide command palette
+  enableChat: boolean;        // Show/hide chat widget
+  chatHotkey: string;        // Keyboard shortcut (default: "Mod+K")
+  sparkFolder: string;       // Location of .spark folder (default: ".spark")
+}
+```
+
+### Stored As (JSON)
+
+```json
+{
+  "enablePalette": true,
+  "enableChat": true,
+  "chatHotkey": "Mod+K",
+  "sparkFolder": ".spark"
+}
+```
+
+### How to Configure
+
+Via Obsidian Settings UI:
+1. Open Obsidian Settings (⚙️)
+2. Go to "Community Plugins" → "Spark Assistant"
+3. Toggle features on/off
+4. Change hotkeys
+
+### Characteristics
+
+- ✅ **User-specific** - Each user has their own preferences
+- ✅ **Automatic storage** - Managed by Obsidian Plugin API
+- ❌ **NOT version controlled** - In `.gitignore`
+- ❌ **NOT shared** - Each user configures independently
+- 🎯 **Purpose** - UI convenience and personal workflow
+
+---
+
+## Daemon Configuration (Intelligence Behavior)
+
+Daemon configuration lives entirely in `.spark/` directory. Three types:
 
 1. **Main Config** - `.spark/config.yaml` - Core daemon and AI settings
 2. **Trigger Config** - `.spark/triggers/*.yaml` - What events trigger SOPs
@@ -629,13 +696,127 @@ spark config init
 
 ---
 
+## Configuration Architecture Summary
+
+### Two-Layer System
+
+```
+┌─────────────────────────────────────────────┐
+│         OBSIDIAN PLUGIN                     │
+│  .obsidian/plugins/spark/data.json          │
+│  (User-specific, not version controlled)    │
+│                                             │
+│  - UI preferences (palette, chat, hotkeys) │
+│  - Display options                          │
+│  - Personal workflow settings               │
+└─────────────────────────────────────────────┘
+                    ↕
+        Plugin reads both configs
+        (but only modifies its own)
+                    ↕
+┌─────────────────────────────────────────────┐
+│         VAULT ROOT                          │
+│  .spark/config.yaml                         │
+│  (Vault-specific, version controlled)       │
+│                                             │
+│  - AI model and behavior                    │
+│  - Trigger automation rules                 │
+│  - MCP service connections                  │
+│  - File watching patterns                   │
+└─────────────────────────────────────────────┘
+                    ↕
+        Daemon reads only this config
+                    ↕
+┌─────────────────────────────────────────────┐
+│         SPARK DAEMON                        │
+│  (Reads .spark/config.yaml on startup)      │
+└─────────────────────────────────────────────┘
+```
+
+### Why Two Separate Configs?
+
+**1. Separation of Concerns**
+- Plugin = UI layer (personal preferences)
+- Daemon = Intelligence layer (team configuration)
+
+**2. Version Control**
+- `.spark/config.yaml` committed to git → Team shares AI settings
+- Plugin `data.json` gitignored → Each user keeps personal preferences
+
+**3. Team Collaboration**
+```
+Same Vault, Different Users:
+
+User A:
+  - Plugin settings: Palette enabled, chat disabled
+  - Daemon config: (shared) Claude 3.5, email triggers
+
+User B:
+  - Plugin settings: Palette disabled, chat enabled
+  - Daemon config: (shared) Claude 3.5, email triggers
+```
+
+**4. Security**
+- Daemon config references environment variables: `api_key_env: ANTHROPIC_API_KEY`
+- Actual secrets stored outside repo
+- Plugin settings don't contain secrets
+
+### Configuration Modification
+
+| Config Type | Modified By | Modified Via | When |
+|------------|-------------|--------------|------|
+| Plugin Settings | User | Obsidian Settings UI | Anytime |
+| Daemon Config | Team | Text editor | Requires daemon restart |
+
+### What Goes Where?
+
+**Plugin Settings (.obsidian/plugins/spark/data.json):**
+- ✅ Enable/disable UI features
+- ✅ Keyboard shortcuts
+- ✅ Display preferences
+- ✅ UI theme options
+- ❌ AI model selection
+- ❌ Trigger rules
+- ❌ MCP servers
+
+**Daemon Config (.spark/config.yaml):**
+- ✅ AI provider and model
+- ✅ Trigger automation
+- ✅ MCP service connections
+- ✅ File watching patterns
+- ✅ Result writing behavior
+- ❌ UI preferences
+- ❌ Hotkeys
+
+### Plugin Can Reference Daemon Config (Read-Only)
+
+The plugin may read daemon config to:
+- Show status (e.g., "Using Claude 3.5")
+- Display enabled features
+- Validate compatibility
+
+But plugin **never modifies** daemon config.
+
+### Daemon Never Reads Plugin Settings
+
+The daemon operates independently and doesn't care about:
+- Whether command palette is enabled in UI
+- What hotkeys the user prefers
+- How the chat widget is displayed
+
+Daemon behavior is controlled entirely by `.spark/config.yaml`.
+
+---
+
 ## Summary
 
 **Configuration Philosophy:**
 
-1. **Files over API** - All config in YAML files
-2. **Explicit over implicit** - Clear trigger definitions
-3. **User controls installation** - Spark doesn't install MCP servers
+1. **Two layers** - UI preferences (plugin) vs Intelligence behavior (daemon)
+2. **Files over API** - All daemon config in YAML files
+3. **Explicit over implicit** - Clear trigger definitions
+4. **User controls installation** - Spark doesn't install MCP servers
+5. **Separation enables collaboration** - Team shares intelligence config, individuals keep UI preferences
 4. **Validation on startup** - Fail fast with helpful errors
 5. **Sensible defaults** - Works out of box with minimal config
 
@@ -645,13 +826,3 @@ spark config init
 - `.spark/triggers/frontmatter.yaml` - Frontmatter change triggers
 - `.spark/triggers/patterns.yaml` - File pattern triggers
 - `.spark/integrations/*/config.yaml` - MCP server references
-
-**Next Steps:**
-
-Now that configuration is clear, we can spec:
-1. **Command File Format** - What goes in `.spark/commands/*.md`
-2. **Agent File Format** - What goes in `.spark/agents/*.md`
-3. **SOP File Format** - What goes in `.spark/sops/*.md`
-4. **Mention Parser** - How daemon parses complex mention chains
-
-Which should we detail next?

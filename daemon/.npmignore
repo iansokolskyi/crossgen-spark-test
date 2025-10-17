@@ -1,0 +1,19 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Config files
+tsconfig.json
+eslint.config.mjs
+.prettierrc
+
+# Development
+*.test.ts
+*.spec.ts
+__tests__/
+coverage/
+
+# Docs
+README.md
+

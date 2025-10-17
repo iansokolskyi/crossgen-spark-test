@@ -1,10 +1,8 @@
 # Spark Assistant
 
-[![Daemon Tests](https://img.shields.io/badge/daemon%20tests-264%20passing-brightgreen)](https://github.com/YOUR_USERNAME/crossgen-spark/actions/workflows/daemon-ci.yml)
-[![Plugin Build](https://img.shields.io/badge/plugin-build%20passing-brightgreen)](https://github.com/YOUR_USERNAME/crossgen-spark/actions/workflows/plugin-ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-79%25-brightgreen)](#testing)
+[![Daemon CI](https://github.com/automazeio/crossgen-spark/actions/workflows/daemon-ci.yml/badge.svg)](https://github.com/automazeio/crossgen-spark/actions/workflows/daemon-ci.yml)
+[![Plugin CI](https://github.com/automazeio/crossgen-spark/actions/workflows/plugin-ci.yml/badge.svg)](https://github.com/automazeio/crossgen-spark/actions/workflows/plugin-ci.yml)
 
-> **Note:** Replace `YOUR_USERNAME` with your GitHub username in workflow files. See [CI_CD_SETUP.md](CI_CD_SETUP.md) for setup.
 
 **Transform Obsidian into an intelligent business operating system powered by AI.**
 

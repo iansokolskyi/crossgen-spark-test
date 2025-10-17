@@ -4,26 +4,14 @@ This guide will help you set up continuous integration, testing, and coverage ba
 
 ## Quick Setup (2 minutes)
 
-### 1. Update Workflow Files
-
-In `.github/workflows/daemon-ci.yml` and `.github/workflows/plugin-ci.yml`, no changes needed - they work out of the box!
-
-### 2. Update Badges (Optional)
-
-In `README.md`, replace `YOUR_USERNAME` with your GitHub username if you want the badge links to work:
-
-```markdown
-[![Daemon Tests](https://img.shields.io/badge/daemon%20tests-264%20passing-brightgreen)](https://github.com/YOUR_USERNAME/crossgen-spark/actions/workflows/daemon-ci.yml)
-```
-
-### 3. Enable GitHub Actions
+### 1. Enable GitHub Actions
 
 Actions should be enabled by default. Verify:
 1. Go to your repository on GitHub
 2. Click the "Actions" tab
 3. You should see workflows ready to run
 
-### 4. Test It!
+### 2. Test It!
 
 Push to main or create a PR:
 
@@ -56,29 +44,47 @@ Watch the Actions tab to see your workflows run!
 
 ## Understanding the Badges
 
-You'll see three static badges in your README:
+The README uses **dynamic GitHub Actions workflow badges**:
 
-### 1. Daemon Tests Badge
+### 1. Daemon CI Badge
 ```markdown
-[![Daemon Tests](https://img.shields.io/badge/daemon%20tests-264%20passing-brightgreen)]
+[![Daemon CI](https://github.com/automazeio/crossgen-spark/actions/workflows/daemon-ci.yml/badge.svg)](...)
 ```
-- 🟢 **Green**: Shows total passing tests
-- Click to go to GitHub Actions workflow runs
+- ✅ **Auto-updates**: Shows real-time pass/fail status
+- **Clickable**: Links to latest workflow run
+- **Summary shows**: Test count (264 tests), coverage (79%), full logs
 
-### 2. Plugin Build Badge
+### 2. Plugin CI Badge
 ```markdown
-[![Plugin Build](https://img.shields.io/badge/plugin-build%20passing-brightgreen)]
+[![Plugin CI](https://github.com/automazeio/crossgen-spark/actions/workflows/plugin-ci.yml/badge.svg)](...)
 ```
-- 🟢 **Green**: Plugin builds successfully
-- Click to go to GitHub Actions workflow runs
+- ✅ **Auto-updates**: Shows build pass/fail status
+- **Clickable**: Links to latest build
+- **Summary shows**: Build artifacts and file sizes
 
-### 3. Coverage Badge
+### Why Workflow Badges?
+
+For **private repositories**, GitHub Actions badges are the best solution:
+- ✅ Work on private repos (unlike Codecov, Coveralls)
+- ✅ Work on forks automatically
+- ✅ Zero maintenance - no manual updates needed
+- ✅ Built into GitHub - no external services
+
+### Viewing Test Counts & Coverage
+
+1. Click any badge in README
+2. Go to workflow run page
+3. Check **"Summary"** tab at the top
+4. See: Test count, coverage %, build details
+
+### For Forks
+
+Badges automatically work when you fork! If needed, update the org name in `README.md`:
+
 ```markdown
-![Coverage](https://img.shields.io/badge/coverage-79%25-brightgreen)
+<!-- Replace 'automazeio' with your org/username -->
+[![Daemon CI](https://github.com/YOUR_ORG/crossgen-spark/actions/workflows/daemon-ci.yml/badge.svg)](...)
 ```
-- 🟢 **Green**: Shows test coverage percentage
-- Update manually when coverage changes
-- Coverage details available in CI logs and local `coverage/` folder
 
 ## Enforcing Quality (Recommended)
 
@@ -109,10 +115,15 @@ Now PRs must pass all checks before merging! 🎉
 - Check that you've pushed the `.github/workflows/` files
 - Look in the "Actions" tab for any errors
 
-### Coverage number is outdated
-- Badges are static - update manually when coverage changes
-- Run `npm run test:coverage` locally to see current coverage
-- Check CI logs for "Coverage Summary" output
+### Workflows run twice (on PR merge)
+- This is **expected behavior** ✅
+- When you merge a PR, it triggers twice:
+  1. Once for the PR (`pull_request` event)
+  2. Once for `main` (`push` event after merge)
+- Both runs are useful:
+  - PR run: Validates the changes before merge
+  - Main run: Validates the merged state
+- To see only main runs: Filter by branch in Actions tab
 
 ## Local Preview
 

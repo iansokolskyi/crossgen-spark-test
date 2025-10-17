@@ -54,26 +54,26 @@ GitHub Actions should be enabled by default for your repository. If not:
 2. Click "Actions" → "General"
 3. Enable "Allow all actions and reusable workflows"
 
-### 2. Update Badge URLs (Optional)
-
-In `README.md`, replace `YOUR_USERNAME` with your GitHub username if you want badge links to work:
-
-```markdown
-[![Daemon Tests](https://img.shields.io/badge/daemon%20tests-264%20passing-brightgreen)](https://github.com/YOUR_USERNAME/crossgen-spark/...)
-```
-
-### 3. First Run
+### 2. First Run
 
 The workflows will run automatically on your next push to `main` or when you create a PR.
 
 ## Badges
 
-Static badges in the main README show:
-- ✅ **Daemon Tests**: 264 passing tests
-- ✅ **Plugin Build**: Build status
-- 📊 **Coverage**: Current test coverage (79%)
+Dynamic workflow badges in the main README:
 
-Update these manually when numbers change.
+```markdown
+[![Daemon CI](https://github.com/automazeio/crossgen-spark/actions/workflows/daemon-ci.yml/badge.svg)](...)
+[![Plugin CI](https://github.com/automazeio/crossgen-spark/actions/workflows/plugin-ci.yml/badge.svg)](...)
+```
+
+Benefits:
+- ✅ **Auto-update**: Show real-time pass/fail status
+- ✅ **Clickable**: Link to latest workflow run
+- ✅ **Private repo friendly**: Work without external services
+- ✅ **Fork friendly**: Work automatically when forked
+
+Click any badge → See workflow run → Check "Summary" tab for detailed results (test counts, coverage, build artifacts).
 
 ## Troubleshooting
 

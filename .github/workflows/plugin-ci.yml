@@ -35,7 +35,7 @@ jobs:
         cache-dependency-path: plugin/package-lock.json
     
     - name: Install dependencies
-      run: npm ci
+      run: npm ci --legacy-peer-deps
     
     - name: Run format check
       run: npm run format:check
@@ -59,4 +59,16 @@ jobs:
           echo "Build failed: dist/manifest.json not found"
           exit 1
         fi
+        echo "✅ Build successful"
+    
+    - name: Build Summary
+      run: |
+        echo "## 🔌 Plugin Build Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**✅ Build successful**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Built Files" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        ls -lh dist/ | grep -E '\.(js|json|css)$' >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
 

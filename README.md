@@ -77,9 +77,13 @@ spark/
 ├── ARCHITECTURE_QUESTIONS.md          # Architectural decisions
 ├── DECISIONS_STATUS.md                # Decision tracking
 │
-├── specs/                             # Detailed specifications
+├── specs/                             # Detailed specifications & docs
 │   ├── PRODUCT_ARCHITECTURE.md        # System architecture
 │   ├── MENTION_PARSER.md              # Parsing @mentions and /commands
+│   ├── DEVELOPER_EXPERIENCE.md        # DX roadmap and test coverage
+│   ├── CI_CD_SETUP.md                 # GitHub Actions setup
+│   ├── PLUGIN_PROGRESS.md             # Plugin implementation tracking
+│   ├── DAEMON_PROGRESS.md             # Daemon implementation tracking
 │   ├── CONFIGURATION.md               # Config system
 │   ├── FILE_FORMATS.md                # Command/agent/trigger formats
 │   ├── PLUGIN_UI_SPEC.md              # Plugin interface design
@@ -108,7 +112,6 @@ spark/
 │   │   ├── chat-widget/               # 🚧 TODO
 │   │   └── types/
 │   ├── dist/                          # Build output
-│   ├── PLUGIN_PROGRESS.md             # Detailed progress tracking
 │   └── package.json
 │
 └── spark-daemon/                      # Node.js daemon (intelligence layer)
@@ -428,7 +431,7 @@ The repository enforces strict quality standards through **automated checks**:
 ✅ **Build validation** for both daemon and plugin
 ❌ **Blocks merging** if checks fail
 
-See [CI_CD_SETUP.md](CI_CD_SETUP.md) for 2-minute setup.
+See [CI_CD_SETUP.md](specs/CI_CD_SETUP.md) for 2-minute setup.
 
 #### Pre-Commit Hooks
 ✅ **Auto-fix** formatting and linting issues locally
@@ -479,7 +482,7 @@ npm test MentionParser.test.ts
 
 **Coverage:** 79% (threshold: 78%) - Run `npm run test:coverage` to view detailed report at `coverage/index.html`
 
-See [DEVELOPER_EXPERIENCE.md](DEVELOPER_EXPERIENCE.md) for detailed test status and CI/CD logs for real-time coverage.
+See [DEVELOPER_EXPERIENCE.md](specs/DEVELOPER_EXPERIENCE.md) for detailed test status and CI/CD logs for real-time coverage.
 
 #### Plugin Tests
 🚧 Coming soon - test infrastructure planned for Phase 4
@@ -522,8 +525,8 @@ npm start -- ../example-vault
 
 - **[Plugin Plan](specs/IMPLEMENTATION_PLAN_PLUGIN.md)** - 6 phases, 4-6 weeks
 - **[Daemon Plan](specs/IMPLEMENTATION_PLAN_DAEMON.md)** - 7 phases, 6-8 weeks
-- **[Plugin Progress](PLUGIN_PROGRESS.md)** - Detailed task tracking (Phase 2 ✅)
-- **[Fuzzy Matching Analysis](FUZZY_MATCHING_IMPROVEMENTS.md)** - Algorithm review and improvements
+- **[Plugin Progress](specs/PLUGIN_PROGRESS.md)** - Detailed task tracking (Phase 2 ✅)
+- **[Fuzzy Matching Analysis](specs/FUZZY_MATCHING_IMPROVEMENTS.md)** - Algorithm review and improvements
 
 ### Examples
 

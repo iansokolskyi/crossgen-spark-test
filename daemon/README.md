@@ -100,7 +100,7 @@ npm test MentionParser.test.ts
 - Current coverage: 79% (threshold: 78%, enforced by CI/CD)
 - Coverage details visible in GitHub Actions workflow logs
 
-See [DEVELOPER_EXPERIENCE.md](../DEVELOPER_EXPERIENCE.md) for detailed test coverage and status.
+See [DEVELOPER_EXPERIENCE.md](../specs/DEVELOPER_EXPERIENCE.md) for detailed test coverage and status.
 
 ## Installation
 
@@ -115,7 +115,7 @@ spark start ~/Documents/Obsidian
 
 ## Implementation Progress
 
-See [DAEMON_PROGRESS.md](../DAEMON_PROGRESS.md) for detailed progress tracking.
+See [DAEMON_PROGRESS.md](../specs/DAEMON_PROGRESS.md) for detailed progress tracking.
 
 **Current Phase:** Phase 1 - Project Setup & File Watching
 

@@ -192,8 +192,8 @@ The daemon handles:
 
 ## Documentation
 
-- **[PLUGIN_PROGRESS.md](../PLUGIN_PROGRESS.md)**: Detailed implementation progress and task tracking
-- **[FUZZY_MATCHING_IMPROVEMENTS.md](../FUZZY_MATCHING_IMPROVEMENTS.md)**: Fuzzy search algorithm analysis and future enhancements
+- **[PLUGIN_PROGRESS.md](../specs/PLUGIN_PROGRESS.md)**: Detailed implementation progress and task tracking
+- **[FUZZY_MATCHING_IMPROVEMENTS.md](../specs/FUZZY_MATCHING_IMPROVEMENTS.md)**: Fuzzy search algorithm analysis and future enhancements
 - **[specs/](../specs/)**: Complete technical specifications
 
 ## License

@@ -27,7 +27,7 @@ export default {
         '!src/types/**',
     ],
     coverageDirectory: 'coverage',
-    coverageReporters: ['text', 'lcov', 'html'],
+    coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
     coverageThreshold: {
         global: {
             branches: 75,

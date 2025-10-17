@@ -55,22 +55,36 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         
         # Extract actual test counts from Jest output
-        TEST_SUITES=$(grep "Test Suites:" test-output.txt | tail -1 || echo "")
-        TEST_COUNTS=$(grep "Tests:" test-output.txt | tail -1 || echo "")
-        
-        if [ -n "$TEST_SUITES" ]; then
-          echo "**$TEST_SUITES**" >> $GITHUB_STEP_SUMMARY
+        if [ -f test-output.txt ]; then
+          TEST_SUITES=$(grep "Test Suites:" test-output.txt | tail -1 || echo "")
+          TEST_COUNTS=$(grep "Tests:" test-output.txt | tail -1 || echo "")
+          
+          if [ -n "$TEST_SUITES" ]; then
+            echo "**$TEST_SUITES**" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "$TEST_COUNTS" ]; then
+            echo "**$TEST_COUNTS**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
         fi
-        if [ -n "$TEST_COUNTS" ]; then
-          echo "**$TEST_COUNTS**" >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "" >> $GITHUB_STEP_SUMMARY
         
-        # Show coverage summary
-        echo "### Coverage" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        cat coverage/coverage-summary.json | grep -A 3 "total" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+        # Show coverage summary if available
+        if [ -f coverage/coverage-summary.json ]; then
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          jq '.total' coverage/coverage-summary.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Extract percentages for quick view
+          LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+          BRANCHES=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
+          FUNCTIONS=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
+          STATEMENTS=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Lines:** ${LINES}% | **Branches:** ${BRANCHES}% | **Functions:** ${FUNCTIONS}% | **Statements:** ${STATEMENTS}%" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Coverage report not generated" >> $GITHUB_STEP_SUMMARY
+        fi
     
     - name: Build
       run: npm run build

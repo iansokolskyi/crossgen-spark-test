@@ -39,6 +39,11 @@ describe('PathResolver', () => {
         });
 
         it('should resolve agent regardless of case (macOS)', async () => {
+            // Skip on Linux (case-sensitive file system)
+            if (process.platform !== 'darwin') {
+                return;
+            }
+
             const result = await resolver.resolveAgent('Betty');
 
             // On macOS, file system is case-insensitive

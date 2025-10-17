@@ -46,14 +46,10 @@ You: @betty what's our burn rate?
 2. Change to `status: sent`
 3. Email automatically sent!
 
-See `.spark/` directory for all configuration.
-When I call @review-q4-finances here - it doesn't work – it get's undecorated on click.
-@tasks/ 
 
-@test 
 
-| @betty                                                                   | [[test]]    |
+| Mentions work in tables as well.                                         |             |
 | ------------------------------------------------------------------------ | ----------- |
-| @review-q4-finances                                                      | @test       |
-| @review-q4-finances  asdasd @review-q4-finances  <br>asdasd asdasd @test | @tasks/ asd |
+| @review-q4-finances                                                      |             |
+| @review-q4-finances @review-q4-finances  multiple mentions @betty        | @tasks/ asd |
 |                                                                          |             |

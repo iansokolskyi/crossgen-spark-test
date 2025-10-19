@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# Exit immediately if any command fails
+set -e
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+echo "🔍 Running pre-commit checks..."
+
+# Check Plugin
+echo "\n📦 Checking Plugin..."
+cd "$REPO_ROOT/plugin"
+
+# Auto-fix formatting and linting
+echo "  Formatting..."
+npm run format
+
+echo "  Linting..."
+npm run lint:fix
+
+# Run full check (format:check, lint, type-check)
+echo "  Running checks..."
+npm run check
+
+echo "✅ Plugin checks passed!"
+
+# Check Daemon
+echo "\n🤖 Checking Daemon..."
+cd "$REPO_ROOT/daemon"
+
+# Auto-fix formatting and linting
+echo "  Formatting..."
+npm run format
+
+echo "  Linting..."
+npm run lint:fix
+
+# Run full check (format:check, lint, type-check, tests)
+echo "  Running checks..."
+npm run check
+
+echo "✅ Daemon checks passed!"
+
+# Add any auto-fixed files
+cd "$REPO_ROOT"
+git add -u
+
+echo "\n✅ All pre-commit checks passed!"
+echo "🚀 Proceeding with commit..."
+

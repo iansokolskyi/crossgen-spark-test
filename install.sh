@@ -51,6 +51,10 @@ echo -e "${YELLOW}→ Building daemon...${NC}"
 npm run build
 echo -e "${GREEN}✓ Daemon built successfully${NC}"
 
+echo -e "${YELLOW}→ Making CLI executable...${NC}"
+chmod +x dist/cli.js
+echo -e "${GREEN}✓ CLI permissions set${NC}"
+
 echo -e "${YELLOW}→ Linking daemon globally...${NC}"
 npm link
 echo -e "${GREEN}✓ Daemon linked globally (spark command available)${NC}"
@@ -66,6 +70,15 @@ echo -e "${YELLOW}→ Building plugin...${NC}"
 npm run build
 echo -e "${GREEN}✓ Plugin built successfully${NC}"
 echo ""
+
+# Set up git hooks
+cd "$SCRIPT_DIR"
+if [ -d "$SCRIPT_DIR/.githooks" ]; then
+    echo -e "${YELLOW}→ Setting up git hooks...${NC}"
+    git config core.hooksPath .githooks
+    echo -e "${GREEN}✓ Git hooks configured${NC}"
+    echo ""
+fi
 
 # Check if vault path is provided
 if [ -n "$1" ]; then

@@ -24,6 +24,7 @@ export class CommandPaletteManager {
 	private coordinateDetector: CoordinateDetector;
 	private triggerDetector: TriggerDetector;
 	private paletteSelectHandler: EventListener;
+	private clickOutsideHandler: EventListener;
 
 	constructor(plugin: ISparkPlugin) {
 		this.plugin = plugin;
@@ -35,6 +36,10 @@ export class CommandPaletteManager {
 
 		this.paletteSelectHandler = ((evt: CustomEvent) => {
 			this.onItemSelected(evt.detail.item);
+		}) as EventListener;
+
+		this.clickOutsideHandler = ((evt: MouseEvent) => {
+			this.handleClickOutside(evt);
 		}) as EventListener;
 	}
 
@@ -61,6 +66,9 @@ export class CommandPaletteManager {
 
 		// Register palette selection event
 		document.addEventListener('spark-palette-select', this.paletteSelectHandler);
+
+		// Register click outside handler (use capture phase to handle before other handlers)
+		this.plugin.registerDomEvent(document, 'mousedown', this.clickOutsideHandler, true);
 	}
 
 	/**
@@ -275,6 +283,19 @@ export class CommandPaletteManager {
 		window.setTimeout(() => {
 			this.isInserting = false;
 		}, 50);
+	}
+
+	/**
+	 * Handle clicks outside the palette
+	 */
+	private handleClickOutside(evt: MouseEvent): void {
+		if (!this.paletteView.isVisible()) return;
+
+		const target = evt.target as Element;
+		if (!this.paletteView.containsElement(target)) {
+			// Click is outside palette - close it
+			this.closePalette();
+		}
 	}
 
 	/**

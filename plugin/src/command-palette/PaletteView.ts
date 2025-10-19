@@ -39,10 +39,13 @@ export class PaletteView {
 	 */
 	private createContainer(coords: { top: number; left: number }): HTMLElement {
 		const container = document.body.createDiv('spark-palette');
+
+		// Use fixed positioning relative to viewport
 		container.style.position = 'fixed';
 		container.style.top = `${coords.top + 20}px`;
 		container.style.left = `${coords.left}px`;
-		document.body.appendChild(container);
+		container.style.zIndex = '1000';
+
 		return container;
 	}
 
@@ -204,5 +207,12 @@ export class PaletteView {
 	 */
 	isVisible(): boolean {
 		return this.containerEl !== null;
+	}
+
+	/**
+	 * Check if an element is inside the palette
+	 */
+	containsElement(element: Element): boolean {
+		return this.containerEl?.contains(element) ?? false;
 	}
 }

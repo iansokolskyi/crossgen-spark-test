@@ -91,7 +91,6 @@ export class FuzzyMatcher {
 	private fuzzyMatchScore(query: string, text: string): number {
 		// Try subsequence match first (original algorithm, fast and good for abbreviations)
 		const subsequenceScore = this.subsequenceMatch(query, text);
-		console.log('subsequenceScore', subsequenceScore);
 		if (subsequenceScore > 0) {
 			return subsequenceScore;
 		}

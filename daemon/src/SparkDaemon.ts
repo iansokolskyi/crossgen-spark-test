@@ -411,7 +411,7 @@ export class SparkDaemon implements ISparkDaemon {
       commands: pendingCommands.map((c) => c.raw),
     });
 
-    // Execute commands (Phase 4 - Claude Integration)
+    // Execute commands
     for (const command of pendingCommands) {
       this.logger!.debug('Command detected', {
         line: command.line,
@@ -428,7 +428,6 @@ export class SparkDaemon implements ISparkDaemon {
         });
       }
 
-      // Execute command with Claude
       void this.executeCommand(command, join(this.vaultPath, filePath)).catch((error) => {
         this.logger!.error('Command execution failed', {
           error: error instanceof Error ? error.message : String(error),
@@ -439,8 +438,7 @@ export class SparkDaemon implements ISparkDaemon {
   }
 
   /**
-   * Execute a command using Claude AI
-   * Phase 4 - Claude Integration
+   * Execute a command using AI
    */
   private async executeCommand(command: ParsedCommand, fullPath: string): Promise<void> {
     if (!this.claudeClient || !this.promptBuilder || !this.contextLoader) {
@@ -453,11 +451,7 @@ export class SparkDaemon implements ISparkDaemon {
     });
 
     try {
-      // 1. Load context (Phase 3 - already implemented!)
-      //    ContextLoader internally:
-      //    - Uses PathResolver to resolve mentions
-      //    - Uses ProximityCalculator.rankFilesByProximity() to find nearby files
-      //    - Returns top 10 nearest files with summaries
+      // Load context including mentioned files and nearby files ranked by proximity
       const context = await this.contextLoader.load(fullPath, command.mentions || []);
 
       this.logger!.debug('Context loaded', {
@@ -466,7 +460,7 @@ export class SparkDaemon implements ISparkDaemon {
         hasAgent: !!context.agent,
       });
 
-      // 2. Build prompt
+      // Build structured prompt with agent persona, instructions, and context
       const prompt = this.promptBuilder.build(command, context);
 
       this.logger!.debug('Prompt built', {
@@ -474,12 +468,9 @@ export class SparkDaemon implements ISparkDaemon {
         estimatedTokens: this.promptBuilder.estimateTokens(prompt),
       });
 
-      // Log full prompt for debugging
-      console.log('\n=== FULL PROMPT TO CLAUDE ===');
-      console.log(prompt);
-      console.log('=== END PROMPT ===\n');
+      this.logger!.debug('Full prompt to AI', { prompt });
 
-      // 3. Call Claude
+      // Call AI provider
       const result = await this.claudeClient.complete(prompt);
 
       this.logger!.info('Command executed', {
@@ -487,10 +478,7 @@ export class SparkDaemon implements ISparkDaemon {
         inputTokens: result.usage.inputTokens,
       });
 
-      // 4. Log response (Phase 4B will write to file)
-      console.log('\n=== CLAUDE RESPONSE ===');
-      console.log(result.content);
-      console.log('=======================\n');
+      this.logger!.debug('AI response', { response: result.content });
     } catch (error) {
       this.logger!.error('Command execution failed', error);
       throw error;
@@ -526,7 +514,5 @@ export class SparkDaemon implements ISparkDaemon {
         );
       }
     }
-
-    // TODO: Match triggers (Phase 5 - Trigger System)
   }
 }

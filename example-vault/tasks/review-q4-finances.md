@@ -1,6 +1,6 @@
 ---
 title: Review Q4 Financial Performance
-assigned_to: @betty
+assigned_to: 
 due_date: 2024-01-20
 status: pending
 ---

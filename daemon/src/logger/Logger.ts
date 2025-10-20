@@ -95,8 +95,42 @@ export class Logger {
     message: string,
     ...args: unknown[]
   ): string {
-    const argsStr = args.length > 0 ? ' ' + JSON.stringify(args) : '';
-    return `[${timestamp}] [${level.toUpperCase()}] ${message}${argsStr}`;
+    if (args.length === 0) {
+      return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+    }
+
+    // Format args with proper indentation for readability
+    const formattedArgs = args.map((arg) => {
+      if (typeof arg === 'object' && arg !== null) {
+        // Check if object has a prompt or response field (large text content)
+        const obj = arg as Record<string, unknown>;
+        if ('prompt' in obj && typeof obj.prompt === 'string' && obj.prompt.length > 200) {
+          // For large prompts, format with actual newlines
+          const formatted = this.formatLargeText(obj.prompt);
+          return `\n  prompt:\n${formatted}`;
+        }
+        if ('response' in obj && typeof obj.response === 'string' && obj.response.length > 200) {
+          // For large responses, format with actual newlines
+          const formatted = this.formatLargeText(obj.response);
+          return `\n  response:\n${formatted}`;
+        }
+        // For smaller objects, inline JSON
+        return JSON.stringify(arg);
+      }
+      return JSON.stringify(arg);
+    });
+
+    return `[${timestamp}] [${level.toUpperCase()}] ${message} ${formattedArgs.join(' ')}`;
+  }
+
+  /**
+   * Format large text blocks with proper indentation and visible newlines
+   */
+  private formatLargeText(text: string): string {
+    return text
+      .split('\n')
+      .map((line) => '    ' + line)
+      .join('\n');
   }
 
   private logToConsole(level: LogLevel, message: string): void {

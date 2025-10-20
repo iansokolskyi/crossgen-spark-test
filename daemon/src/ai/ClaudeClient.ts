@@ -46,45 +46,84 @@ export class ClaudeClient implements IAIClient {
         messages: [{ role: 'user', content: prompt }],
       });
 
-      if (!response.content || response.content.length === 0) {
-        throw new SparkError('Empty response from Claude API', 'AI_ERROR');
-      }
-
-      const content = response.content[0];
-      if (!content || content.type !== 'text') {
-        throw new SparkError('Unexpected response type', 'AI_ERROR');
-      }
-
-      const textContent = 'text' in content ? content.text : '';
-
-      this.logger.debug('Claude API response', {
-        outputLength: textContent.length,
-        stopReason: response.stop_reason,
-      });
-
-      return {
-        content: textContent,
-        usage: {
-          inputTokens: response.usage.input_tokens,
-          outputTokens: response.usage.output_tokens,
-        },
-      };
+      return this.processResponse(response);
     } catch (error: unknown) {
-      // Server errors are retryable, client errors are not
-      const err = error as { status?: number; message?: string };
-      const isServerError = err.status ? err.status >= 500 : false;
-      const errorMessage = err.message || 'Unknown error';
-
-      this.logger.error('Claude API error', {
-        error,
-        retryable: isServerError,
-      });
-
-      throw new SparkError(
-        `Claude API error: ${errorMessage}`,
-        isServerError ? 'AI_SERVER_ERROR' : 'AI_CLIENT_ERROR',
-        { originalError: error }
-      );
+      this.handleAPIError(error);
     }
+  }
+
+  /**
+   * Process and validate Claude API response
+   */
+  private processResponse(response: Anthropic.Messages.Message): AICompletionResult {
+    if (!response.content || response.content.length === 0) {
+      throw new SparkError('Empty response from Claude API', 'AI_ERROR');
+    }
+
+    const content = response.content[0];
+    if (!content || content.type !== 'text') {
+      throw new SparkError('Unexpected response type', 'AI_ERROR');
+    }
+
+    const textContent = 'text' in content ? content.text : '';
+
+    this.logger.debug('Claude API response', {
+      outputLength: textContent.length,
+      stopReason: response.stop_reason,
+    });
+
+    return {
+      content: textContent,
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+    };
+  }
+
+  /**
+   * Handle API errors with proper classification and logging
+   */
+  private handleAPIError(error: unknown): never {
+    const err = error as { status?: number; message?: string; cause?: { code?: string } };
+    const errorMessage = err.message || 'Unknown error';
+    const errorCode = this.classifyError(err);
+    const retryable = errorCode !== 'AI_CLIENT_ERROR';
+
+    this.logger.error('Claude API error', {
+      error,
+      errorCode,
+      retryable,
+    });
+
+    throw new SparkError(`Claude API error: ${errorMessage}`, errorCode, {
+      originalError: error,
+    });
+  }
+
+  /**
+   * Classify error type based on error details
+   */
+  private classifyError(err: { status?: number; cause?: { code?: string } }): string {
+    // Check for network errors (DNS, connection, timeout)
+    if (this.isNetworkError(err)) {
+      return 'AI_NETWORK_ERROR';
+    }
+
+    // Server errors (5xx) are retryable
+    if (err.status && err.status >= 500) {
+      return 'AI_SERVER_ERROR';
+    }
+
+    // Client errors (4xx, invalid input, etc.)
+    return 'AI_CLIENT_ERROR';
+  }
+
+  /**
+   * Check if error is a network connectivity issue
+   */
+  private isNetworkError(err: { cause?: { code?: string } }): boolean {
+    const networkErrorCodes = ['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'EAI_AGAIN'];
+    return !!(err.cause?.code && networkErrorCodes.includes(err.cause.code));
   }
 }

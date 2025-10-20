@@ -8,14 +8,17 @@ import type { IContextLoader, LoadedContext } from '../types/context.js';
 import type { ParsedMention } from '../types/parser.js';
 import { PathResolver } from './PathResolver.js';
 import { ProximityCalculator } from './ProximityCalculator.js';
+import { Logger } from '../logger/Logger.js';
 
 export class ContextLoader implements IContextLoader {
   private resolver: PathResolver;
   private proximityCalc: ProximityCalculator;
+  private logger: Logger;
 
   constructor(vaultPath: string) {
     this.resolver = new PathResolver(vaultPath);
     this.proximityCalc = new ProximityCalculator();
+    this.logger = Logger.getInstance();
   }
 
   public async load(currentFile: string, mentions: ParsedMention[]): Promise<LoadedContext> {
@@ -160,7 +163,7 @@ export class ContextLoader implements IContextLoader {
     } catch (error) {
       // If parsing fails, return empty metadata
       // Agent will still work with just the body
-      console.warn('Failed to parse agent frontmatter:', error);
+      this.logger.warn('Failed to parse agent frontmatter, using defaults', { error });
     }
 
     return metadata;
@@ -271,6 +274,10 @@ export class ContextLoader implements IContextLoader {
     } catch (_error) {
       // If loading nearby files fails, just skip them
       // We don't want to fail the entire context load
+      this.logger.warn('Failed to load nearby files for proximity context', {
+        currentFile,
+        error: _error instanceof Error ? _error.message : String(_error),
+      });
     }
   }
 
@@ -278,6 +285,10 @@ export class ContextLoader implements IContextLoader {
     try {
       return readFileSync(filePath, 'utf-8');
     } catch (_error) {
+      this.logger.warn('Failed to read file for context', {
+        filePath,
+        error: _error instanceof Error ? _error.message : String(_error),
+      });
       return '';
     }
   }

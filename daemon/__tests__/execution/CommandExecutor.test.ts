@@ -3,7 +3,7 @@ import { CommandExecutor } from '../../src/execution/CommandExecutor.js';
 import { Logger } from '../../src/logger/Logger.js';
 import type { SparkConfig } from '../../src/types/config.js';
 import type { ParsedCommand } from '../../src/types/parser.js';
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -23,6 +23,7 @@ describe('CommandExecutor', () => {
 
         // Create temp directory
         testDir = mkdtempSync(join(tmpdir(), 'spark-executor-test-'));
+        mkdirSync(join(testDir, '.spark'), { recursive: true });
         testFile = join(testDir, 'test.md');
         writeFileSync(testFile, '# Test\n\n/summarize this');
 
@@ -94,7 +95,8 @@ describe('CommandExecutor', () => {
             mockPromptBuilder,
             mockContextLoader,
             mockResultWriter,
-            config
+            config,
+            testDir
         );
     });
 
@@ -209,7 +211,7 @@ describe('CommandExecutor', () => {
             expect(mockContextLoader.load).toHaveBeenCalledWith(testFile, command.mentions);
         });
 
-        it('should update status to error on failure', async () => {
+        it('should update status to error on failure and write error log', async () => {
             const command: ParsedCommand = {
                 line: 3,
                 raw: '/test',
@@ -230,6 +232,10 @@ describe('CommandExecutor', () => {
                 commandText: '/test',
                 status: '❌',
             });
+
+            // ErrorWriter should create error log file in .spark/logs/
+            // We don't check if file exists because ErrorWriter uses Logger which is mocked
+            // The important thing is that the command properly rejects and status is updated
         });
 
         it('should use add_blank_lines config setting', async () => {

@@ -10,18 +10,22 @@ import type { PromptBuilder } from '../ai/PromptBuilder.js';
 import type { ContextLoader } from '../context/ContextLoader.js';
 import type { ResultWriter } from '../results/ResultWriter.js';
 import { Logger } from '../logger/Logger.js';
+import { ErrorWriter } from '../results/ErrorWriter.js';
 
 export class CommandExecutor {
   private logger: Logger;
+  private errorWriter: ErrorWriter;
 
   constructor(
     private claudeClient: ClaudeClient,
     private promptBuilder: PromptBuilder,
     private contextLoader: ContextLoader,
     private resultWriter: ResultWriter,
-    private config: SparkConfig
+    private config: SparkConfig,
+    vaultPath: string
   ) {
     this.logger = Logger.getInstance();
+    this.errorWriter = new ErrorWriter(vaultPath);
   }
 
   /**
@@ -33,6 +37,8 @@ export class CommandExecutor {
       file: filePath,
     });
 
+    let context = null;
+
     try {
       // Update status to processing
       await this.resultWriter.updateStatus({
@@ -43,7 +49,7 @@ export class CommandExecutor {
       });
 
       // Load context including mentioned files and nearby files ranked by proximity
-      const context = await this.contextLoader.load(filePath, command.mentions || []);
+      context = await this.contextLoader.load(filePath, command.mentions || []);
 
       this.logger.debug('Context loaded', {
         mentionedFiles: context.mentionedFiles.length,
@@ -90,6 +96,19 @@ export class CommandExecutor {
         commandLine: command.line,
         commandText: command.raw,
         status: '❌',
+      });
+
+      // Write detailed error log and notification
+      await this.errorWriter.writeError({
+        error,
+        filePath,
+        commandLine: command.line,
+        commandText: command.raw,
+        context: {
+          hasAgent: context?.agent ? true : false,
+          mentionedFilesCount: context?.mentionedFiles?.length || 0,
+          nearbyFilesCount: context?.nearbyFiles?.length || 0,
+        },
       });
 
       throw error;

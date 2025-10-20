@@ -39,3 +39,12 @@ example-vault/.trash/
 # Example vault
 example-vault/emails/*
 example-vault/README.md
+example-vault/*.md
+
+# Spark daemon runtime files
+example-vault/.spark/reload-status.json
+example-vault/.spark/notifications.jsonl
+
+# Ignore error log files but keep the logs directory
+example-vault/.spark/logs/*
+!example-vault/.spark/logs/.gitkeep

@@ -42,8 +42,13 @@ export function saveRegistry(registry: DaemonRegistry): void {
   try {
     mkdirSync(REGISTRY_DIR, { recursive: true });
     writeFileSync(REGISTRY_FILE, JSON.stringify(registry, null, 2));
-  } catch (_error) {
-    console.error('Warning: Could not save daemon registry:', _error);
+  } catch (error) {
+    // Registry write failure is not critical - daemon can still run
+    // Log with console since Logger may not be available in CLI context
+    console.error(
+      'Warning: Could not save daemon registry:',
+      error instanceof Error ? error.message : String(error)
+    );
   }
 }
 

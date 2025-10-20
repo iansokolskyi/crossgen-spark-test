@@ -101,7 +101,8 @@ export class SparkDaemon implements ISparkDaemon {
         this.promptBuilder,
         this.contextLoader,
         this.resultWriter,
-        this.config
+        this.config,
+        this.vaultPath
       );
       this.logger.debug('AI components initialized');
 
@@ -268,8 +269,13 @@ export class SparkDaemon implements ISparkDaemon {
         timestamp: Date.now(),
       };
       writeFileSync(statusFile, JSON.stringify(statusData, null, 2));
-    } catch {
-      // Ignore write errors - reload still works, just no CLI feedback
+    } catch (error) {
+      // Reload still works, just no CLI feedback - log at debug level
+      if (this.logger) {
+        this.logger.debug('Failed to write reload status file for CLI feedback', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 

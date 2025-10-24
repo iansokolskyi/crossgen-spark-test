@@ -27,7 +27,6 @@ export interface TriggerContext {
  */
 export interface EditorWithCoords extends Editor {
 	coordsAtPos(
-		// eslint-disable-next-line no-unused-vars
 		_pos: EditorPosition
 	): { top: number; left: number; bottom: number; right: number } | null;
 	cm?: {

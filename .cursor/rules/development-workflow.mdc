@@ -1,101 +1,235 @@
 ---
-title: Development Workflow
-description: Development commands and workflow for Spark Assistant
+alwaysApply: true
 ---
 
 # Development Workflow
 
-## Code Quality Check
+This rule describes the step-by-step workflow for implementing features and fixes in the Spark project.
 
-Run the comprehensive check command before committing:
+## Purpose
 
-```bash
-cd daemon
-npm run check
-```
+**This workflow is designed to maximize autonomy and minimize human interaction, speeding up development.**
 
-This runs:
-1. **Formatting** (`prettier --write`) - Auto-formats all TypeScript files
-2. **Linting** (`eslint --fix`) - Fixes auto-fixable lint errors
-3. **Type Checking** (`tsc --noEmit`) - Verifies TypeScript types
-4. **Tests** (`jest --coverage`) - Runs all tests with coverage report
+Key principles:
+- **Minimize token usage** – No over-verbose explanations
+- **Track your progress** – Use TODO lists when going through the plan
+- **Keep plans concise** – Don't write actual code implementation into the plan, only high-level approach
+- **Self-validate** – Verify changes yourself before asking for human review
+- **Be autonomous** – Work through all steps independently when possible
 
-If this passes, your code is ready to commit.
+## Workflow Steps
 
-## Individual Commands
+### 1. Plan
+- Understand the requirements and scope
+- Review relevant context, specs, and existing code
+- Identify affected components and dependencies
+- **Create TODO list** to track progress through the workflow
+- **Keep it high-level** – no actual code implementation in the plan
 
-### Daemon
+### 2. Decision
+- Figure out what options we have
+- Identify open questions regarding:
+  - Implementation approach
+  - Desired functionality
+  - Architecture considerations
+  - Design patterns to use
 
-```bash
-cd daemon
+#### 2b. Baseline Check
+Run `npm run check` to note the current state:
+- Linting status
+- Formatting status
+- Code coverage baseline
 
-# Development (hot reload)
-npm run dev              # Normal mode
-npm run dev:debug        # Debug logging
+This establishes a reference point before making changes.
 
-# Type checking
-npm run type-check       # Check types only
+### 3. Implementation
+- Implement the feature or fix
+- **Don't overengineer** – keep it minimal and elegant
+- **Respect existing design patterns** or use new suitable ones
+- **Don't just add more code** – minimize and refine
+- **Minimize workarounds** – stick to robust implementations
+- Follow established patterns from the codebase
 
-# Linting
-npm run lint             # Check for issues
-npm run lint:fix         # Auto-fix issues
+### 4. Check for Errors
+Run `npm run check` (works for both daemon and plugin):
+- For daemon: runs tests with coverage
+- For plugin: runs linting and formatting checks
 
-# Formatting
-npm run format           # Format all files
+### 5. Address Issues
+- Fix any issues found in the check step
+- If no issues found, proceed to the next step
+- Re-run check after fixes to ensure they're resolved
 
-# Testing
-npm test                 # Run all tests
-npm run test:watch       # Watch mode
-npm run test:coverage    # With coverage report
+### 6. Check Coverage
+If coverage decreased:
 
-# Building
-npm run build            # Compile TypeScript
-```
+**a) Check if we added new code that's not covered:**
+- Add tests for the new code
+- Run tests and check coverage again
 
-### Plugin
+**b) Check if existing code is no longer executed:**
+- May happen due to refactoring, new methods, logic changes
+- Options:
+  - Clean up old methods that are no longer used
+  - Rethink if the new methods are better
+  - Ensure logic changes are intentional and complete
 
-```bash
-cd plugin
+**c) Final validation:**
+- After all fixes and refactors, run tests one final time
+- Ensure coverage is maintained or improved
+- Proceed to next step only when coverage is acceptable
 
-# Development (hot reload)
-npm run dev
+### 7. Hot-Reload Verification
+- The project has hot-reloader for both frontend and backend
+- In most cases, it should pick up changes automatically
+- If in doubt:
+  - Rebuild manually
+  - Or suggest a fix to the hot-reloader
 
-# Building
-npm run build            # Production build
-```
+### 8. Self-Validation
+- **Always try to validate changes yourself** via console logs
+- We have plenty of console logs throughout the codebase
+- New features should ideally add appropriate logging too
+- **This is critical for minimizing human interruption** and speeding up development
+- Check specs or README for launch instructions if needed
+- Only proceed to next step if truly unable to verify
 
-## Hot Reload
+### 9. User Feedback
+- If unable to verify that the plugin works, ask the user
+- User will check and provide feedback
+- Based on feedback:
+  - Return to step 3 (Implementation)
+  - Apply fixes
+  - Go through steps 4-9 again
 
-Both daemon and plugin support hot reload during development:
+## Key Commands
 
-- **Daemon**: Uses `tsx` - saves automatically reload
-- **Plugin**: Uses `esbuild` - watches for changes
+- `npm run check` – comprehensive check for daemon or plugin
+- See README or specs for launch instructions
 
-No need to rebuild manually during development!
+## Philosophy
 
-## Before Committing
+- **Maximize autonomy** – work independently through all steps when possible
+- **Minimize token usage** – be concise, avoid over-verbose explanations
+- **Minimal and elegant** over complex and comprehensive
+- **Robust implementations** over quick workarounds
+- **Respect patterns** that already exist
+- **Self-validate** before asking for human review
+- **Test coverage** is a quality metric, maintain or improve it
+- **Track progress** with TODO lists to stay organized
+# Development Workflow
 
-```bash
-# In daemon directory
-npm run check
+This rule describes the step-by-step workflow for implementing features and fixes in the Spark project.
 
-# If all pass:
-git add .
-git commit -m "Your commit message"
-```
+## Purpose
 
-## Testing with Example Vault
+**This workflow is designed to maximize autonomy and minimize human interaction, speeding up development.**
 
-```bash
-# Set API key
-export ANTHROPIC_API_KEY="your-key"
+Key principles:
+- **Minimize token usage** – No over-verbose explanations
+- **Track your progress** – Use TODO lists when going through the plan
+- **Keep plans concise** – Don't write actual code implementation into the plan, only high-level approach
+- **Self-validate** – Verify changes yourself before asking for human review
+- **Be autonomous** – Work through all steps independently when possible
 
-# Run daemon
-cd daemon
-npm run dev:debug
+## Workflow Steps
 
-# In another terminal, edit example-vault files
-code ../example-vault/test-betty.md
-```
+### 1. Plan
+- Understand the requirements and scope
+- Review relevant context, specs, and existing code
+- Identify affected components and dependencies
+- **Create TODO list** to track progress through the workflow
+- **Keep it high-level** – no actual code implementation in the plan
 
-Watch the daemon console for debug output including full prompts sent to Claude.
+### 2. Decision
+- Figure out what options we have
+- Identify open questions regarding:
+  - Implementation approach
+  - Desired functionality
+  - Architecture considerations
+  - Design patterns to use
+
+#### 2b. Baseline Check
+Run `npm run check` to note the current state:
+- Linting status
+- Formatting status
+- Code coverage baseline
+
+This establishes a reference point before making changes.
+
+### 3. Implementation
+- Implement the feature or fix
+- **Don't overengineer** – keep it minimal and elegant
+- **Respect existing design patterns** or use new suitable ones
+- **Don't just add more code** – minimize and refine
+- **Minimize workarounds** – stick to robust implementations
+- Follow established patterns from the codebase
+
+### 4. Check for Errors
+Run `npm run check` (works for both daemon and plugin):
+- For daemon: runs tests with coverage
+- For plugin: runs linting and formatting checks
+
+### 5. Address Issues
+- Fix any issues found in the check step
+- If no issues found, proceed to the next step
+- Re-run check after fixes to ensure they're resolved
+
+### 6. Check Coverage
+If coverage decreased:
+
+**a) Check if we added new code that's not covered:**
+- Add tests for the new code
+- Run tests and check coverage again
+
+**b) Check if existing code is no longer executed:**
+- May happen due to refactoring, new methods, logic changes
+- Options:
+  - Clean up old methods that are no longer used
+  - Rethink if the new methods are better
+  - Ensure logic changes are intentional and complete
+
+**c) Final validation:**
+- After all fixes and refactors, run tests one final time
+- Ensure coverage is maintained or improved
+- Proceed to next step only when coverage is acceptable
+- All linter, formatter and type errors must be fixed before proceeding.
+
+### 7. Hot-Reload Verification
+- The project has hot-reloader for both frontend and backend
+- In most cases, it should pick up changes automatically
+- If in doubt:
+  - Rebuild manually
+  - Or suggest a fix to the hot-reloader
+
+### 8. Self-Validation
+- **Always try to validate changes yourself** via console logs
+- We have plenty of console logs throughout the codebase
+- New features should ideally add appropriate logging too
+- **This is critical for minimizing human interruption** and speeding up development
+- Check specs or README for launch instructions if needed
+- Only proceed to next step if truly unable to verify
+
+### 9. User Feedback
+- If unable to verify that the plugin works, ask the user
+- User will check and provide feedback
+- Based on feedback:
+  - Return to step 3 (Implementation)
+  - Apply fixes
+  - Go through steps 4-9 again
+
+## Key Commands
+
+- `npm run check` – comprehensive check for daemon or plugin
+- See README or specs for launch instructions
+
+## Philosophy
+
+- **Maximize autonomy** – work independently through all steps when possible
+- **Minimize token usage** – be concise, avoid over-verbose explanations
+- **Minimal and elegant** over complex and comprehensive
+- **Robust implementations** over quick workarounds
+- **Respect patterns** that already exist
+- **Self-validate** before asking for human review
+- **Test coverage** is a quality metric, maintain or improve it
+- **Track progress** with TODO lists to stay organized

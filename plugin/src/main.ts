@@ -3,11 +3,13 @@ import { SparkSettingTab, DEFAULT_SETTINGS } from './settings';
 import { SparkSettings, ISparkPlugin } from './types';
 import { CommandPaletteManager } from './command-palette/CommandPaletteManager';
 import { MentionDecorator, handleMentionClick } from './command-palette/MentionDecorator';
+import { ChatManager } from './chat/ChatManager';
 
 export default class SparkPlugin extends Plugin implements ISparkPlugin {
     settings: SparkSettings;
     private commandPaletteManager: CommandPaletteManager;
     private mentionDecorator: MentionDecorator;
+    private chatManager: ChatManager;
 
     async onload() {
         console.log('Spark Assistant: Loading plugin...');
@@ -23,6 +25,25 @@ export default class SparkPlugin extends Plugin implements ISparkPlugin {
         // Initialize command palette manager with decorator reference
         this.commandPaletteManager = new CommandPaletteManager(this, this.mentionDecorator);
         this.commandPaletteManager.register();
+
+        // Initialize chat manager
+        this.chatManager = new ChatManager(this.app, this);
+        this.chatManager.initialize();
+
+        // Register chat hotkey (Cmd+K)
+        this.addCommand({
+            id: 'toggle-chat',
+            name: 'Toggle Chat Window',
+            editorCallback: () => {
+                this.chatManager.toggleChat();
+            },
+            hotkeys: [
+                {
+                    modifiers: ['Mod'],
+                    key: 'k'
+                }
+            ]
+        });
 
         // Start observing HTML table cells for mention styling
         this.mentionDecorator.startTableObserver();
@@ -57,6 +78,7 @@ export default class SparkPlugin extends Plugin implements ISparkPlugin {
 
     async onunload() {
         this.commandPaletteManager?.unload();
+        this.chatManager?.unload();
         this.mentionDecorator?.stopTableObserver();
         console.log('Spark Assistant: Plugin unloaded');
     }

@@ -1,0 +1,231 @@
+import { App, SuggestModal } from 'obsidian';
+import { ChatConversation } from './types';
+import { ConversationStorage } from './ConversationStorage';
+
+/**
+ * Modal for selecting conversations
+ */
+class ConversationSelectModal extends SuggestModal<ChatConversation> {
+	private conversations: ChatConversation[];
+	private onSelect: (conversation: ChatConversation | null) => void;
+	private storage: ConversationStorage;
+
+	constructor(
+		app: App,
+		storage: ConversationStorage,
+		conversations: ChatConversation[],
+		onSelect: (conversation: ChatConversation | null) => void
+	) {
+		super(app);
+		this.storage = storage;
+		this.conversations = conversations;
+		this.onSelect = onSelect;
+	}
+
+	// Returns available suggestions.
+	getSuggestions(query: string): ChatConversation[] {
+		// If no query, return all conversations
+		if (!query || query.trim() === '') {
+			return this.conversations;
+		}
+
+		// Otherwise filter by content
+		return this.conversations.filter(conv =>
+			conv.messages.some(msg => msg.content.toLowerCase().includes(query.toLowerCase()))
+		);
+	}
+
+	// Renders each suggestion item.
+	renderSuggestion(conversation: ChatConversation, el: HTMLElement) {
+		const firstMessage = conversation.messages[0];
+		const date = new Date(conversation.created).toLocaleDateString();
+
+		// Create container for suggestion content
+		const contentEl = el.createDiv({ cls: 'spark-conversation-suggestion-content' });
+
+		// Date and title section
+		const titleEl = contentEl.createDiv({ cls: 'suggestion-title' });
+		titleEl.createSpan({ text: date });
+
+		// Message preview
+		const noteEl = contentEl.createDiv({ cls: 'suggestion-note' });
+		if (firstMessage) {
+			const preview =
+				firstMessage.content.length > 50
+					? firstMessage.content.substring(0, 50) + '...'
+					: firstMessage.content;
+			noteEl.setText(preview);
+		} else {
+			noteEl.setText('Empty conversation');
+			noteEl.style.opacity = '0.5';
+		}
+
+		// Add delete button
+		const deleteBtn = contentEl.createDiv({
+			cls: 'spark-conversation-delete-btn',
+		});
+		deleteBtn.innerHTML =
+			'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6"/></svg>';
+		deleteBtn.title = 'Delete conversation';
+		deleteBtn.onclick = async (e: MouseEvent) => {
+			e.stopPropagation();
+			await this.deleteConversation(conversation.id, el);
+		};
+
+		el.dataset.conversationId = conversation.id;
+	}
+
+	// Delete a conversation
+	private async deleteConversation(conversationId: string, element: HTMLElement): Promise<void> {
+		try {
+			await this.storage.deleteConversation(conversationId);
+			this.conversations = this.conversations.filter(conv => conv.id !== conversationId);
+
+			// Remove from UI with animation
+			element.style.opacity = '0';
+			element.style.transform = 'translateX(-100%)';
+			window.setTimeout(() => {
+				element.remove();
+				if (this.inputEl) {
+					this.inputEl.dispatchEvent(new Event('input'));
+				}
+			}, 200);
+		} catch (error) {
+			console.error('Failed to delete conversation:', error);
+		}
+	}
+
+	// Perform action on the selected suggestion.
+	onChooseSuggestion(conversation: ChatConversation, _evt: MouseEvent | KeyboardEvent) {
+		this.onSelect(conversation);
+	}
+}
+
+/**
+ * Chat selector component for managing conversations
+ */
+export class ChatSelector {
+	private app: App;
+	private containerEl: HTMLElement;
+	private storage: ConversationStorage;
+	private onNewChat: () => void;
+	private onSelectConversation: (_conversationId: string) => void;
+	private activeModal: ConversationSelectModal | null = null;
+	private conversations: ChatConversation[] | null = null;
+
+	constructor(
+		app: App,
+		storage: ConversationStorage,
+		onNewChat: () => void,
+		onSelectConversation: (conversationId: string) => void
+	) {
+		this.app = app;
+		this.storage = storage;
+		this.onNewChat = onNewChat;
+		this.onSelectConversation = onSelectConversation;
+	}
+
+	/**
+	 * Load conversations in background
+	 */
+	async loadConversations(): Promise<void> {
+		try {
+			this.conversations = await this.storage.listConversations();
+		} catch (error) {
+			console.error('Failed to load conversations:', error);
+			this.conversations = [];
+		}
+	}
+
+	/**
+	 * Invalidate cached conversations (call when creating new chat or switching)
+	 */
+	invalidateCache(): void {
+		this.conversations = null;
+	}
+
+	/**
+	 * Create the selector UI for the left side (dropdown next to title)
+	 */
+	createTitleSide(containerEl: HTMLElement): void {
+		this.containerEl = containerEl;
+
+		const dropdownBtn = document.createElement('button');
+		dropdownBtn.className = 'spark-chat-dropdown-btn';
+		dropdownBtn.innerHTML = '▼';
+		dropdownBtn.title = 'Select Conversation';
+		dropdownBtn.onclick = async () => await this.showConversationModal();
+
+		containerEl.appendChild(dropdownBtn);
+	}
+
+	/**
+	 * Create the selector UI for the right side (new chat button)
+	 */
+	createRightSide(containerEl: HTMLElement): void {
+		const newChatBtn = document.createElement('button');
+		newChatBtn.className = 'spark-chat-new-btn';
+		newChatBtn.innerHTML = '+';
+		newChatBtn.title = 'New Chat';
+		newChatBtn.onclick = () => this.onNewChat();
+
+		containerEl.appendChild(newChatBtn);
+	}
+
+	/**
+	 * Create the selector UI (legacy method for backward compatibility)
+	 */
+	create(containerEl: HTMLElement): void {
+		this.createRightSide(containerEl);
+	}
+
+	/**
+	 * Show conversation selection modal
+	 */
+	private async showConversationModal(): Promise<void> {
+		if (this.activeModal) {
+			this.activeModal.close();
+			this.activeModal = null;
+			return;
+		}
+
+		// Load conversations if not loaded
+		if (this.conversations === null) {
+			await this.loadConversations();
+		}
+
+		this.activeModal = new ConversationSelectModal(
+			this.app,
+			this.storage,
+			this.conversations || [],
+			conversation => {
+				this.activeModal = null;
+				if (conversation) {
+					this.onSelectConversation(conversation.id);
+				}
+			}
+		);
+
+		this.activeModal.open();
+
+		this.activeModal.onClose = () => {
+			this.activeModal = null;
+		};
+	}
+
+	/**
+	 * Update selector state
+	 */
+	update(_conversationId: string): void {
+		// Could add visual indicators for current conversation in the future
+	}
+
+	/**
+	 * Destroy the selector
+	 */
+	destroy(): void {
+		if (this.containerEl) {
+			this.containerEl.innerHTML = '';
+		}
+	}
+}

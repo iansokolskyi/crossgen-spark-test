@@ -49,3 +49,6 @@ example-vault/.spark/notifications.jsonl
 # Ignore error log files but keep the logs directory
 example-vault/.spark/logs/*
 !example-vault/.spark/logs/.gitkeep
+
+# Add the conversations directory to VCS, but ignore all files inside
+example-vault/.spark/conversations/*

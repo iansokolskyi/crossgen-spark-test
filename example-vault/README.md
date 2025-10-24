@@ -50,8 +50,9 @@ You: @betty what's our burn rate?
 
 
 
-| Mentions work in tables as well.                                         |             |
-| ------------------------------------------------------------------------ | ----------- |
-| @review-q4-finances                                                      |             |
-| @review-q4-finances @review-q4-finances  multiple mentions @betty        | @tasks/ asd |
-|                                                                          |             |
+| Mentions work in tables as well.                                  |             |
+| ----------------------------------------------------------------- | ----------- |
+| @review-q4-finances                                               |             |
+| @review-q4-finances @review-q4-finances  multiple mentions @betty | @tasks/ asd |
+|                                                                   |             |
+|                                                                   |             |

@@ -36,7 +36,7 @@ export default [
 
 			// General rules
 			'no-console': 'off', // Allow console.log for debugging
-			'no-unused-vars': 'error',
+			'no-unused-vars': 'off', // Use @typescript-eslint/no-unused-vars instead
 			'prefer-const': 'error',
 			'no-var': 'error',
 		},

@@ -43,6 +43,21 @@ export class ChatQueueHandler {
 
       // Parse mentions and build command
       const mentions = this.mentionParser.parse(parsed.userMessage);
+
+      // If no agent explicitly mentioned, inject primaryAgent to ensure proper routing
+      const agentMention = mentions.find((m) => m.type === 'agent');
+      if (!agentMention && parsed.primaryAgent) {
+        mentions.unshift({
+          type: 'agent',
+          value: parsed.primaryAgent,
+          raw: `@${parsed.primaryAgent}`,
+          position: 0,
+        });
+        this.logger.debug('Injected primary agent into mentions', {
+          primaryAgent: parsed.primaryAgent,
+        });
+      }
+
       let fullPrompt = parsed.userMessage;
       if (parsed.context) {
         fullPrompt = `Context from previous messages:\n${parsed.context}\n\n${parsed.userMessage}`;

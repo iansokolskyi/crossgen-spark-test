@@ -47,21 +47,19 @@
 
 ### 🐛 Known Issues (See BUGS.md)
 
-1. Agent/file name confusion in chat titles
-2. Wrong agent attribution in multi-agent chats
-3. Missing send button (arrow-up icon)
-4. Shift+Enter not creating new line
-5. Conversation text not selectable/copiable
-6. **Agent responses not rendered as markdown** (shows raw ``` markers)
-7. Mentions not decorated in conversation history
-8. No command palette integration in chat input
+1. ✅ FIXED - Agent/file name confusion in chat titles
+2. ✅ FIXED - Wrong agent attribution in multi-agent chats  
+3. ✅ FIXED - Missing send button (arrow-up icon)
+4. ✅ FIXED - Shift+Enter not creating new line
+5. ✅ FIXED - Conversation text not selectable/copiable
+6. ✅ FIXED - Agent responses not rendered as markdown
+7. ✅ FIXED - Mentions not decorated in conversation history (decorated and clickable)
+8. ✅ FIXED - Command palette integration in chat input
 
 ### 🔄 Not Yet Implemented
 
 **Phase 3 Remaining:**
-- Command palette integration in chat input (trigger on @ and /)
-- File modification tracking and notifications
-- Clickable mentions in messages
+- File modification tracking and notifications (when agents create/edit files)
 
 **Phase 4: Enhanced Features (Future)**
 - Conversation search across all chats
@@ -249,22 +247,22 @@ When agents modify files, the chat interface displays:
 
 ## Next Steps
 
-### Immediate Priorities (Bug Fixes - See BUGS.md)
+### ✅ Completed Bug Fixes
 
-1. **Fix Markdown Rendering** - Agent responses need proper markdown parsing (HIGH PRIORITY)
-2. **Add Send Button** - 20x20 arrow-up icon next to input field
-3. **Implement Command Palette** - Show @mentions and /commands palette in chat
-4. **Fix Shift+Enter** - Allow multi-line messages in contenteditable div
-5. **Enable Text Selection** - Make conversation history copiable
-6. **Decorate Mentions in History** - Apply mention styling to rendered messages
-7. **Fix Agent Attribution** - Distinguish agents from files, maintain primary agent
+1. ✅ **Markdown Rendering** - Agent responses properly render markdown
+2. ✅ **Send Button** - 20x20 arrow-up icon added
+3. ✅ **Command Palette** - @mentions and /commands palette works in chat
+4. ✅ **Shift+Enter** - Multi-line messages work properly
+5. ✅ **Text Selection** - Conversation history is selectable/copiable
+6. ✅ **Decorated Mentions** - Mentions styled and clickable in all messages
+7. ✅ **Agent Attribution** - Primary agent tracked across conversation
+8. ✅ **Folders in Palette** - Directories now appear in @ suggestions
 
 ### Enhancement Priorities
 
 1. **File Modification Notifications** - Show when agents create/edit files
-2. **Clickable Mentions** - Navigate to files/folders from chat messages
-3. **Conversation Search** - Find messages across all conversations
-4. **Export/Import** - Backup and restore functionality
+2. **Conversation Search** - Find messages across all conversations
+3. **Export/Import** - Backup and restore functionality
 
 ## Resolved Questions
 

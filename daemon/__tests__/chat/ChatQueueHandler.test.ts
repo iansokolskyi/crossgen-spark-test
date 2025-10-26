@@ -241,6 +241,95 @@ help me
             const result = JSON.parse(readFileSync(resultFile, 'utf-8'));
             expect(result.agent).toBe('Assistant');
         });
+
+        it('should inject primaryAgent when no explicit agent mentioned', async () => {
+            const queueDir = join(vault.path, '.spark', 'chat-queue');
+            mkdirSync(queueDir, { recursive: true });
+
+            const queueFile = join(queueDir, 'conv-888-123.md');
+            const content = `---
+conversation_id: conv-888
+queue_id: conv-888-123
+primary_agent: mykola
+---
+
+<!-- spark-chat-message -->
+what's your name?
+<!-- /spark-chat-message -->
+`;
+            writeFileSync(queueFile, content);
+
+            // Parser returns no mentions from the user message
+            mockParser.parse.mockReturnValue([]);
+            mockExecutor.executeAndReturn.mockResolvedValue('I am Mykola');
+
+            await handler.process('.spark/chat-queue/conv-888-123.md');
+
+            // Verify primaryAgent was injected into mentions for routing
+            expect(mockExecutor.executeAndReturn).toHaveBeenCalled();
+            const callArgs = mockExecutor.executeAndReturn.mock.calls[0];
+            expect(callArgs).toBeDefined();
+            const [command] = callArgs!;
+            expect(command.mentions).toBeDefined();
+            expect(command.mentions).toHaveLength(1);
+            expect(command.mentions![0]).toEqual({
+                type: 'agent',
+                value: 'mykola',
+                raw: '@mykola',
+                position: 0,
+            });
+
+            // Verify result uses primaryAgent
+            const resultFile = join(vault.path, '.spark', 'chat-results', 'conv-888.jsonl');
+            const result = JSON.parse(readFileSync(resultFile, 'utf-8'));
+            expect(result.agent).toBe('mykola');
+        });
+
+        it('should prioritize explicit agent mention over primaryAgent', async () => {
+            const queueDir = join(vault.path, '.spark', 'chat-queue');
+            mkdirSync(queueDir, { recursive: true });
+
+            const queueFile = join(queueDir, 'conv-777-123.md');
+            const content = `---
+conversation_id: conv-777
+queue_id: conv-777-123
+primary_agent: mykola
+---
+
+<!-- spark-chat-message -->
+@betty help me with finances
+<!-- /spark-chat-message -->
+`;
+            writeFileSync(queueFile, content);
+
+            // Parser returns the explicit @betty mention
+            mockParser.parse.mockReturnValue([
+                {
+                    type: 'agent',
+                    value: 'betty',
+                    raw: '@betty',
+                    position: 0,
+                },
+            ]);
+            mockExecutor.executeAndReturn.mockResolvedValue('Financial advice from Betty');
+
+            await handler.process('.spark/chat-queue/conv-777-123.md');
+
+            // Verify mentions NOT modified (no injection, explicit mention present)
+            expect(mockExecutor.executeAndReturn).toHaveBeenCalled();
+            const callArgs = mockExecutor.executeAndReturn.mock.calls[0];
+            expect(callArgs).toBeDefined();
+            const [command] = callArgs!;
+            expect(command.mentions).toBeDefined();
+            expect(command.mentions).toHaveLength(1);
+            expect(command.mentions?.[0]).toBeDefined();
+            expect(command.mentions?.[0]?.value).toBe('betty');
+
+            // Verify result uses explicit agent, not primaryAgent
+            const resultFile = join(vault.path, '.spark', 'chat-results', 'conv-777.jsonl');
+            const result = JSON.parse(readFileSync(resultFile, 'utf-8'));
+            expect(result.agent).toBe('betty');
+        });
     });
 });
 

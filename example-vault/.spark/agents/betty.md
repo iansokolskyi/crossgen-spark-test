@@ -8,8 +8,7 @@ expertise:
 tools:
   - quickbooks
 context_folders:
-  - finance/
-  - invoices/
+  - tasks/
 ai:
   model: claude-sonnet-4-5-20250929
   temperature: 0.3

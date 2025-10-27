@@ -6,6 +6,8 @@ expertise:
   - Writing improvement
   - Grammar and style
   - Tone and voice
+context_folders:
+  - emails/
 ai:
   model: claude-sonnet-4-5-20250929
   temperature: 0.5

@@ -116,6 +116,7 @@ export class ChatSelector {
 	private storage: ConversationStorage;
 	private onNewChat: () => void;
 	private onSelectConversation: (_conversationId: string) => void;
+	private onConversationDeletedCallback: ((conversationId: string) => void) | null = null;
 	private activeModal: ConversationSelectModal | null = null;
 	private conversations: ChatConversation[] | null = null;
 
@@ -129,6 +130,13 @@ export class ChatSelector {
 		this.storage = storage;
 		this.onNewChat = onNewChat;
 		this.onSelectConversation = onSelectConversation;
+	}
+
+	/**
+	 * Set callback for when a conversation is deleted
+	 */
+	setOnConversationDeleted(callback: (conversationId: string) => void): void {
+		this.onConversationDeletedCallback = callback;
 	}
 
 	/**
@@ -156,6 +164,10 @@ export class ChatSelector {
 	onConversationDeleted(conversationId: string): void {
 		if (this.conversations) {
 			this.conversations = this.conversations.filter(conv => conv.id !== conversationId);
+		}
+		// Notify ChatWindow if this is the active conversation
+		if (this.onConversationDeletedCallback) {
+			this.onConversationDeletedCallback(conversationId);
 		}
 	}
 

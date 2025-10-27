@@ -51,6 +51,33 @@ export class ChatWindow extends Component {
 		this.createChatWindow();
 		this.setupEventListeners();
 		this.setupResultWatcher();
+		this.setupSelectorCallbacks();
+	}
+
+	/**
+	 * Setup callbacks for chat selector
+	 */
+	private setupSelectorCallbacks() {
+		this.chatSelector.setOnConversationDeleted((conversationId: string) => {
+			this.handleConversationDeleted(conversationId);
+		});
+	}
+
+	/**
+	 * Handle when a conversation is deleted
+	 */
+	private handleConversationDeleted(conversationId: string): void {
+		// Check if the deleted conversation is the active one
+		if (this.state.conversationId === conversationId) {
+			// Clear messages first to prevent re-saving the deleted conversation
+			this.state.messages = [];
+			this.state.mentionedAgents.clear();
+			this.state.conversationId = this.generateConversationId();
+			this.messagesEl.innerHTML = '';
+			this.updateChatTitle();
+			this.chatSelector.update(this.state.conversationId);
+			this.chatSelector.invalidateCache();
+		}
 	}
 
 	/**
@@ -493,6 +520,7 @@ export class ChatWindow extends Component {
 			// Delete the empty conversation
 			try {
 				await this.conversationStorage.deleteConversation(this.state.conversationId);
+				this.chatSelector.invalidateCache();
 			} catch (error) {
 				console.error('Spark Chat: Failed to delete empty conversation:', error);
 			}
@@ -509,6 +537,8 @@ export class ChatWindow extends Component {
 
 		try {
 			await this.conversationStorage.saveConversation(conversationData);
+			// Invalidate cache so dropdown shows updated list
+			this.chatSelector.invalidateCache();
 		} catch (error) {
 			console.error('Spark Chat: Failed to save conversation:', error);
 		}
@@ -1137,52 +1167,111 @@ export class ChatWindow extends Component {
 	 * Handle result from daemon
 	 */
 	private handleDaemonResult(result: ChatResult): void {
-		// Only process results for current conversation
-		if (result.conversationId !== this.state.conversationId) {
-			return;
-		}
+		const isActiveConversation = result.conversationId === this.state.conversationId;
 
-		// Remove loading message
-		const loadingMessages = this.state.messages.filter(msg => msg.type === 'loading');
-		loadingMessages.forEach(msg => this.removeMessage(msg.id));
+		if (isActiveConversation) {
+			// Active conversation - update UI directly
+			// Remove loading message
+			const loadingMessages = this.state.messages.filter(msg => msg.type === 'loading');
+			loadingMessages.forEach(msg => this.removeMessage(msg.id));
 
-		// Add agent response
-		if (result.error) {
-			const errorMessage: ChatMessage = {
-				id: this.generateId(),
-				timestamp: new Date(result.timestamp).toISOString(),
-				type: 'agent',
-				content: `❌ Error: ${result.error}`,
-				agent: result.agent || 'Spark Assistant',
-			};
-			this.addMessage(errorMessage);
-		} else {
-			const response: ChatMessage = {
-				id: this.generateId(),
-				timestamp: new Date(result.timestamp).toISOString(),
-				type: 'agent',
-				content: result.content,
-				agent: result.agent,
-				filesModified: result.filesModified,
-			};
-			this.addMessage(response);
-
-			// Show file modification notification if any
-			if (result.filesModified && result.filesModified.length > 0) {
-				const notificationMessage: ChatMessage = {
+			// Add agent response
+			if (result.error) {
+				const errorMessage: ChatMessage = {
 					id: this.generateId(),
 					timestamp: new Date(result.timestamp).toISOString(),
 					type: 'agent',
-					content: `📝 Modified ${result.filesModified.length} file(s):\n${result.filesModified.map(f => `  • ${f}`).join('\n')}`,
-					agent: 'Spark Assistant',
+					content: `❌ Error: ${result.error}`,
+					agent: result.agent || 'Spark Assistant',
 				};
-				this.addMessage(notificationMessage);
-			}
-		}
+				this.addMessage(errorMessage);
+			} else {
+				const response: ChatMessage = {
+					id: this.generateId(),
+					timestamp: new Date(result.timestamp).toISOString(),
+					type: 'agent',
+					content: result.content,
+					agent: result.agent,
+					filesModified: result.filesModified,
+				};
+				this.addMessage(response);
 
-		this.state.isProcessing = false;
+				// Show file modification notification if any
+				if (result.filesModified && result.filesModified.length > 0) {
+					const notificationMessage: ChatMessage = {
+						id: this.generateId(),
+						timestamp: new Date(result.timestamp).toISOString(),
+						type: 'agent',
+						content: `📝 Modified ${result.filesModified.length} file(s):\n${result.filesModified.map(f => `  • ${f}`).join('\n')}`,
+						agent: 'Spark Assistant',
+					};
+					this.addMessage(notificationMessage);
+				}
+			}
+
+			this.state.isProcessing = false;
+		} else {
+			// Non-active conversation - update conversation file directly
+			void this.updateBackgroundConversation(result);
+		}
 
 		// Clean up queue file
 		void this.chatQueue.dequeue(result.queueId);
+	}
+
+	/**
+	 * Update a conversation that's not currently active
+	 */
+	private async updateBackgroundConversation(result: ChatResult): Promise<void> {
+		try {
+			// Load the conversation from storage
+			const conversation = await this.conversationStorage.loadConversation(result.conversationId);
+			if (!conversation) {
+				console.warn(
+					'ChatWindow: Cannot update background conversation - not found:',
+					result.conversationId
+				);
+				return;
+			}
+
+			// Remove loading messages
+			conversation.messages = conversation.messages.filter(msg => msg.type !== 'loading');
+
+			// Add response
+			if (result.error) {
+				conversation.messages.push({
+					id: this.generateId(),
+					timestamp: new Date(result.timestamp).toISOString(),
+					type: 'agent',
+					content: `❌ Error: ${result.error}`,
+					agent: result.agent || 'Spark Assistant',
+				});
+			} else {
+				conversation.messages.push({
+					id: this.generateId(),
+					timestamp: new Date(result.timestamp).toISOString(),
+					type: 'agent',
+					content: result.content,
+					agent: result.agent,
+					filesModified: result.filesModified,
+				});
+
+				// Add file modification notification
+				if (result.filesModified && result.filesModified.length > 0) {
+					conversation.messages.push({
+						id: this.generateId(),
+						timestamp: new Date(result.timestamp).toISOString(),
+						type: 'agent',
+						content: `📝 Modified ${result.filesModified.length} file(s):\n${result.filesModified.map(f => `  • ${f}`).join('\n')}`,
+						agent: 'Spark Assistant',
+					});
+				}
+			}
+
+			// Save updated conversation
+			await this.conversationStorage.saveConversation(conversation);
+		} catch (error) {
+			console.error('ChatWindow: Failed to update background conversation:', error);
+		}
 	}
 }

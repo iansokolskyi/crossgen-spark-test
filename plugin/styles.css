@@ -267,7 +267,6 @@
     background-color: transparent;
     color: var(--text-muted);
     align-self: flex-start;
-    font-style: italic;
     padding: 8px 12px;
     border-radius: 8px;
     max-width: 80%;

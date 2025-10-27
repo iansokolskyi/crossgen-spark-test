@@ -594,8 +594,7 @@ export class ChatWindow extends Component {
 
 		if (message.type === 'loading') {
 			// Create jumping dots loader
-			contentEl.innerHTML =
-				'<span class="spark-chat-loading-dots">Thinking</span><span class="spark-jumping-dots"></span>';
+			contentEl.innerHTML = `<span class="spark-chat-loading-dots">${message.content}</span><span class="spark-jumping-dots"></span>`;
 		} else if (message.type === 'agent') {
 			// Render agent responses as markdown
 			void this.renderMarkdown(message.content, contentEl);
@@ -1082,20 +1081,22 @@ export class ChatWindow extends Component {
 		// Update chat title (excluding Spark Assistant if real agents are mentioned)
 		this.updateChatTitle(Array.from(this.state.mentionedAgents));
 
-		// Show loading message
+		// Show loading message with agent name
+		const agentName = this.state.lastMentionedAgent || 'Agent';
+		const capitalizedAgentName = agentName.charAt(0).toUpperCase() + agentName.slice(1);
 		const loadingMessage: ChatMessage = {
 			id: this.generateId(),
 			timestamp: new Date().toISOString(),
 			type: 'loading',
-			content: 'Thinking',
+			content: `${capitalizedAgentName} is typing`,
 		};
 		this.addMessage(loadingMessage);
 		this.state.isProcessing = true;
 
 		try {
-			// Build conversation history for context
+			// Build conversation history for context (exclude current message)
 			const history = this.state.messages
-				.filter(msg => msg.type !== 'loading')
+				.filter(msg => msg.type !== 'loading' && msg.id !== message.id)
 				.slice(-10) // Last 10 messages for context
 				.map(msg => ({
 					role: msg.type === 'user' ? 'user' : 'assistant',

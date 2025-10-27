@@ -63,7 +63,7 @@ ai:
 logging:
   level: info
   console: true
-  # file: null   # NOT IMPLEMENTED: File logging is not yet implemented (defaults to null)
+  # file: null   # PARTIALLY IMPLEMENTED: logging defaults to .spark/logs
 
 # Feature flags
 features:

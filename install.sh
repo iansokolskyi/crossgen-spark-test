@@ -165,6 +165,86 @@ done
 echo "]" >> "$COMMUNITY_PLUGINS_FILE"
 
 echo -e "${GREEN}✓ Plugins enabled in config${NC}"
+
+# Disable Cmd+K hotkey for insert-link (so Spark chat can use it)
+echo -e "${YELLOW}→ Configuring hotkeys...${NC}"
+HOTKEYS_FILE="$VAULT_PATH/.obsidian/hotkeys.json"
+
+# Create or update hotkeys.json - ensure Cmd+K is available for Spark
+HOTKEY_RESULT=$(node -e "
+const fs = require('fs');
+const path = '$HOTKEYS_FILE';
+let hotkeys = {};
+
+// Read existing hotkeys if file exists
+if (fs.existsSync(path)) {
+  try {
+    hotkeys = JSON.parse(fs.readFileSync(path, 'utf-8'));
+  } catch (e) {
+    // Ignore parse errors, will create new file
+  }
+}
+
+// Find and remove Cmd+K from any commands that use it
+const resolvedConflicts = [];
+for (const [command, bindings] of Object.entries(hotkeys)) {
+  if (Array.isArray(bindings)) {
+    const filteredBindings = bindings.filter(binding => {
+      // Handle string format: 'Mod+K' or 'Cmd+K'
+      if (typeof binding === 'string') {
+        if (binding === 'Mod+K' || binding === 'Cmd+K') {
+          resolvedConflicts.push(command);
+          return false; // Remove this binding
+        }
+      }
+      // Handle object format: {modifiers: ['Mod'], key: 'K'}
+      else if (typeof binding === 'object' && binding !== null) {
+        const mods = binding.modifiers || [];
+        const key = binding.key || '';
+        if ((mods.includes('Mod') || mods.includes('Cmd')) && key === 'K') {
+          resolvedConflicts.push(command);
+          return false; // Remove this binding
+        }
+      }
+      return true; // Keep other bindings
+    });
+    hotkeys[command] = filteredBindings;
+  }
+}
+
+// Disable editor:insert-link to free up Cmd+K
+if (!hotkeys['editor:insert-link']) {
+  hotkeys['editor:insert-link'] = [];
+}
+
+// Ensure spark:toggle-chat has Cmd+K if the entry exists
+if (hotkeys.hasOwnProperty('spark:toggle-chat')) {
+  hotkeys['spark:toggle-chat'] = [
+    {
+      modifiers: ['Mod'],
+      key: 'K'
+    }
+  ];
+}
+
+// Write updated hotkeys
+fs.writeFileSync(path, JSON.stringify(hotkeys, null, 2) + '\n');
+
+// Output results
+if (resolvedConflicts.length > 0) {
+  console.log('resolved:' + resolvedConflicts.join(','));
+} else {
+  console.log('ok');
+}
+")
+
+if echo "$HOTKEY_RESULT" | grep -q "^resolved:"; then
+  CONFLICTS=$(echo "$HOTKEY_RESULT" | sed 's/^resolved://')
+  echo -e "${GREEN}✓ Cmd+K configured for Spark chat${NC}"
+  echo -e "${YELLOW}  → Resolved conflicts: $CONFLICTS${NC}"
+else
+  echo -e "${GREEN}✓ Cmd+K configured for Spark chat${NC}"
+fi
 echo ""
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

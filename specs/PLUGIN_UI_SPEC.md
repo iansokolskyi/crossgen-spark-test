@@ -1,7 +1,8 @@
 # Spark Plugin UI Specification
 
-**Status:** Specification Phase  
-**Date:** 2024
+**Status:** ✅ Implemented  
+**Date:** October 26, 2025  
+**Implementation:** `plugin/src/command-palette/` and `plugin/src/chat/`
 
 ---
 

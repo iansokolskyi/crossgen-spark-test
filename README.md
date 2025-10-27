@@ -100,9 +100,9 @@ spark start ~/Documents/MyVault
 ### First Steps
 
 1. Open `example-vault` in Obsidian
-2. Type `/` in any note to see available commands
+2. Type `@` in any note to see available agents, type `/` to see available commands
 3. Try `/summarize` or mention `@betty`
-4. Press `Cmd+K` to open chat (coming soon)
+4. Press `Cmd+K` to open chat widget
 5. For development: `cd plugin && npm run dev` for hot reload
 
 ---
@@ -157,42 +157,9 @@ spark status
 
 # Stop daemon
 spark stop ~/Documents/Vault
-```
 
-**Persistent background with logs:**
-```bash
-# Create logs directory
-mkdir -p ~/.spark/logs
-
-# Start with logging
-nohup spark start ~/Documents/Vault > ~/.spark/logs/daemon.log 2>&1 &
-
-# View logs
-tail -f ~/.spark/logs/daemon.log
-
-# Or with debug mode
-nohup spark start ~/Documents/Vault --debug > ~/.spark/logs/daemon.log 2>&1 &
-```
-
-**Using a process manager (recommended for production):**
-```bash
-# Install pm2
-npm install -g pm2
-
-# Start daemon with pm2
-pm2 start spark -- start ~/Documents/Vault
-pm2 start spark --name "spark-vault" -- start ~/Documents/Vault --debug
-
-# Manage with pm2
-pm2 list                 # Show all processes
-pm2 logs spark-vault     # View logs
-pm2 restart spark-vault  # Restart
-pm2 stop spark-vault     # Stop
-pm2 delete spark-vault   # Remove
-
-# Auto-start on system boot
-pm2 startup
-pm2 save
+# Stop all daemons
+spark stop --all
 ```
 
 ---
@@ -235,8 +202,8 @@ spark/
 │   ├── src/
 │   │   ├── main.ts
 │   │   ├── settings.ts
-│   │   ├── command-palette/           # ✅ Complete
-│   │   ├── chat-widget/               # 🚧 TODO
+│   │   ├── command-palette/           
+│   │   ├── chat/                    
 │   │   └── types/
 │   ├── dist/                          # Build output
 │   └── package.json
@@ -251,8 +218,9 @@ spark/
     │   ├── parser/                    # Syntax parsing
     │   ├── context/                   # Context loading
     │   ├── logger/                    # Logging (Logger, DevLogger)
+    │   ├── chat/                      # Chat queue handler
     │   └── types/                     # TypeScript types
-    ├── __tests__/                     # Test suite (264 tests, 79% coverage)
+    ├── __tests__/                     # Test suite
     └── package.json
 ```
 
@@ -317,15 +285,15 @@ Betty: Draft created at @emails/investor-update.md
 ```
 
 **How it works:**
-1. Press `Cmd+K` to open chat
-2. Full conversation history maintained
-3. Access to entire vault + proximity context
-4. Mentions work same as in documents
-5. Can execute commands inline
+1. Press `Cmd+K` to open floating chat widget
+2. Full conversation history maintained in `.spark/conversations/`
+3. Real-time responses from daemon via file system
+4. Mentions work same as in documents with auto-completion
+5. Can reference files, folders, and agents naturally
 
-### Automation Triggers
+### Automation Triggers (Planned)
 
-File changes trigger automated workflows:
+File changes will trigger automated workflows:
 
 **Example: Kanban Email Automation**
 
@@ -706,25 +674,6 @@ curl https://api.anthropic.com/v1/messages \
   -H "content-type: application/json" \
   -d '{"model":"claude-3-5-sonnet-20241022","max_tokens":10,"messages":[{"role":"user","content":"Hi"}]}'
 ```
-
-### MCP services not working
-
-```bash
-# Test MCP server
-npx -y @modelcontextprotocol/server-gmail --help
-
-# Check configuration
-cat .spark/integrations/gmail/config.yaml
-
-# View daemon logs for MCP errors
-grep "MCP" ~/.spark/logs/daemon.log
-```
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details
 
 ---
 

@@ -2,7 +2,8 @@
 
 **Target:** Obsidian Plugin (TypeScript)  
 **Purpose:** UI layer for Spark Assistant  
-**Timeline:** 4-6 weeks
+**Timeline:** 4-6 weeks  
+**Status:** ✅ Complete (MVP)
 
 ---
 

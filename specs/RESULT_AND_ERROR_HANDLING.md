@@ -1,7 +1,8 @@
 # Spark Result and Error Handling Specification
 
-**Status:** Specification Phase  
-**Date:** 2024
+**Status:** ✅ Implemented (Chat System)  
+**Date:** October 26, 2025  
+**Implementation:** `daemon/src/results/` and `daemon/src/errors/`
 
 ---
 
@@ -31,40 +32,37 @@ The instructions tell Claude to:
 
 ### Completion Indicator
 
-**Before:**
-```markdown
-Some content...
+**Current Implementation:**
+Status indicators are shown in the chat interface when a message is being processed or completed.
 
-@betty review @finance/Q4/ comparing with $quickbooks, flag issues in @compliance-rules.md and /create-report
-
-More content...
+**Processing:**
+```
+User: @betty review @finance/Q4/
+●●● Betty is typing...
 ```
 
-**After (Completed Successfully):**
-```markdown
-Some content...
+**Completed:**
+```
+User: @betty review @finance/Q4/
 
-✅ @betty review @finance/Q4/ comparing with $quickbooks, flag issues in @compliance-rules.md and /create-report
-
-More content...
+Betty: I've reviewed the Q4 finances. Here's what I found:
+       - Revenue increased by 15%
+       - Expenses decreased by 8%
+       - Net profit: $130K
 ```
 
-That's it. The ✅ tells the user it's done.
+**Error:**
+```
+User: @betty review @nonexistent.md
 
-### Notification
-
-When complete, daemon writes to `.spark/notifications.jsonl`:
-
-```jsonl
-{"id": "abc123", "type": "success", "message": "Task completed successfully", "timestamp": 1234567890}
+❌ Error: File @nonexistent.md not found
+   The file could not be found in the vault. Please check the filename.
 ```
 
-Plugin shows toast:
-```
-┌─────────────────────────────┐
-│ ✓ Task completed            │
-└─────────────────────────────┘
-```
+**NOT IMPLEMENTED:**
+- ❌ File status indicators (✅ in the original file)
+- ❌ Toast notifications
+- ❌ `.spark/notifications.jsonl` file
 
 ---
 
@@ -136,60 +134,63 @@ Just a link to the created file, not the full content.
 
 ## Notification System
 
-### Notification Types
+### Notification Types (Current Implementation)
 
 ```typescript
-interface Notification {
+interface ChatResult {
   id: string;
-  type: 'success' | 'error' | 'warning' | 'info' | 'progress';
+  type: 'agent_response' | 'error';
   message: string;
   timestamp: number;
+  conversation_id: string;
   
-  // Optional fields
-  file?: string;              // Which file triggered this
-  line?: number;              // Line number in file
-  link?: string;              // Link to log file or result
-  progress?: number;          // 0-1 for long operations
-  action?: {
-    label: string;
-    command: string;
+  // For agent responses
+  agent?: string;
+  content?: string;
+  
+  // For errors
+  error?: {
+    code: string;
+    message: string;
+    details?: string;
   };
 }
 ```
 
-### Display Options
+### Current Display Method
 
-**Option 1: Obsidian Toast (Preferred)**
+**Chat Interface Only (Currently Implemented)**
 
-Plugin shows native Obsidian notification:
-
-```typescript
-// In Obsidian plugin
-new Notice("✓ Task completed successfully");
-```
-
-Simple, native, non-intrusive.
-
-**Option 2: System Notification (Fallback)**
-
-If Obsidian is not focused or plugin not running:
+All notifications and results are displayed directly in the chat interface:
 
 ```typescript
-// In daemon
-notifier.notify({
-  title: 'Spark',
-  message: 'Task completed successfully',
-  sound: true,
-  wait: false
-});
+// Agent response - appears as chat message
+{
+  type: 'agent_response',
+  agent: 'betty',
+  content: 'I have reviewed the Q4 finances...'
+}
+
+// Error - appears as error message in chat
+{
+  type: 'error',
+  error: {
+    code: 'FILE_NOT_FOUND',
+    message: 'File @nonexistent.md not found',
+    details: 'Checked multiple locations...'
+  }
+}
 ```
 
-Uses native OS notifications (macOS Notification Center, Windows Action Center, Linux notify-send).
+**NOT IMPLEMENTED:**
+- ❌ Obsidian toast notifications
+- ❌ System notifications
+- ❌ Status bar updates
 
-**Decision: Use both**
-- Try Obsidian toast first (write to notifications.jsonl)
-- If urgent/error, also send system notification
-- User can configure in settings
+**Future Enhancements:**
+- Toast notifications for non-critical events
+- System notifications when Obsidian is not focused
+- Status bar integration for quick status checks
 
 ---
 

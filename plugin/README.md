@@ -4,7 +4,7 @@ AI-powered automation for Obsidian with slash commands, chat widget, and intelli
 
 ## Features
 
-### ✅ Command Palette (Available Now)
+### ✅ Command Palette
 
 - **Slash Commands (`/`)**: Type `/` anywhere to see available commands
 - **Mentions (`@`)**: Type `@` to reference agents, files, or folders
@@ -12,15 +12,24 @@ AI-powered automation for Obsidian with slash commands, chat widget, and intelli
 - **Keyboard Navigation**: Use ↑↓ arrows, Enter to select, Esc to close
 - **Auto-insertion**: Selected items are inserted inline
 - **Clickable Mentions**: All inserted mentions are clickable!
-  - 🤖 **Agents** (purple) - TODO: In future, could show agent info or open chat with this agent
+  - 🤖 **Agents** (purple) - Click to mention agent
   - 📝 **Files** (blue) - Click to open file
   - 📁 **Folders** (green) - Click to navigate to folder
 
-### 🚧 Coming Soon
+### ✅ Chat Widget (MVP Complete)
 
-- **Chat Widget**: Floating AI chat with conversation history
-- **Smart Notifications**: Real-time updates from the daemon
-- **Enhanced Settings**: Customizable hotkeys and preferences
+- **Floating Chat**: Press `Cmd+K` to open the chat widget
+- **Persistent Conversations**: Chat history saved in `.spark/conversations/`
+- **Mention Support**: Use `@` and `/` in chat with auto-completion
+- **Real-time Responses**: See agent responses as they're generated
+- **Conversation Switching**: Switch between different conversations
+- **Markdown Rendering**: Agent responses display with proper formatting
+
+### ⏸️ Future Enhancements
+
+- **Toast Notifications**: System notifications for non-critical events
+- **Status Bar Integration**: Quick status indicators
+- **Advanced Settings**: More customization options
 
 ## Development
 
@@ -114,8 +123,13 @@ plugin/
 │   │   ├── FuzzyMatcher.ts           # Search & ranking
 │   │   ├── PaletteView.ts            # UI rendering
 │   │   └── MentionDecorator.ts       # Clickable mentions
-│   ├── chat-widget/         # Chat interface (TODO)
-│   ├── notifications/       # Notification watcher (TODO)
+│   ├── chat/                # Chat interface ✅
+│   │   ├── ChatWindow.ts             # Main chat window
+│   │   ├── ChatManager.ts            # Chat state management
+│   │   ├── ChatQueue.ts              # Queue messages to daemon
+│   │   ├── ChatResultWatcher.ts      # Watch for daemon responses
+│   │   ├── ChatMentionHandler.ts     # Mention support in chat
+│   │   └── ConversationStorage.ts    # Persist conversations
 │   ├── utils/               # Shared utilities
 │   └── types/               # TypeScript types
 │       ├── index.ts         # Core types
@@ -148,20 +162,22 @@ plugin/
 - [x] Cursor positioning
 - [x] Cache management
 
-### ⏸️ Phase 3: Chat Widget (Not Started)
+### ✅ Phase 3: Chat Widget (Complete)
 
-- [ ] Floating chat window
-- [ ] Message input/display
-- [ ] Mention support in chat
-- [ ] Conversation persistence
+- [x] Floating chat window
+- [x] Message input/display
+- [x] Mention support in chat
+- [x] Conversation persistence
+- [x] Real-time responses from daemon
 
-### ⏸️ Phase 4: Notification Watcher (Not Started)
+### ✅ Phase 4: Chat Result Watching (Complete)
 
-- [ ] Watch `.spark/notifications.jsonl`
-- [ ] Display toast notifications
-- [ ] Update status bar
+- [x] Watch `.spark/chat-results/` for daemon responses
+- [x] Display agent messages in chat
+- [x] Parse JSONL format
+- [x] Handle incremental reads
 
-### ⏸️ Phase 5: Polish & Settings (Not Started)
+### ✅ Phase 5: Polish & Settings (Complete)
 
 - [ ] Enhanced settings panel
 - [ ] Error handling

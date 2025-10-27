@@ -70,6 +70,82 @@
 
 ---
 
+## User Interface Design
+
+### Chat Window
+- **Floating overlay** positioned in bottom-right corner
+- **Resizable window** with minimum/maximum dimensions
+- **Dynamic chat titles** showing active agents (e.g., "Chat with betty and mykola")
+- **Title truncation** for conversations with many agents
+- **Closeable** with ESC key or close button
+- **Always on top** of other Obsidian elements
+
+### Input Experience
+- **Intuitive text input** with visual send button
+- **Keyboard shortcuts**: Enter to send, Shift+Enter for new line
+- **Auto-expanding input** that grows with content
+- **Helpful placeholder**: "Type your message (@ for mentions)..."
+- **Multi-line support** for longer messages
+- **Smart positioning** of command palette above input
+
+### Message Display
+- **Rich formatting** for agent responses (code blocks, bold, lists)
+- **Visual distinction** between user and agent messages
+- **Clickable mentions** for quick navigation to agents, files, and folders
+- **Selectable text** for copying important information
+- **Auto-scroll** to keep latest messages visible
+- **Loading indicators** during agent processing
+
+---
+
+## Agent Interaction
+
+### Agent Communication
+- **Smart conversation context** - agents remember previous messages
+- **Persistent agent relationships** - continue with same agent across messages
+- **Multi-agent conversations** - switch between agents seamlessly
+- **Visual agent identification** in chat titles and message attribution
+- **Agent file access** - agents can read and modify vault files when requested
+
+### Mention System
+- **Unified mention syntax** - same @ and / commands as command palette
+- **Auto-completion** with visual suggestions
+- **Color-coded mentions** for easy identification
+- **File and folder support** - reference vault content directly
+- **Agent discovery** - quickly find and mention available agents
+
+### Conversation Flow
+- **Contextual responses** - agents understand conversation history
+- **Agent switching** - change conversation agents by mentioning others
+- **Follow-up questions** - continue conversations without repeated mentions
+- **File modification feedback** - see when agents create or edit files
+
+---
+
+## Visual Design Elements
+
+### Styling and Layout
+- **Chat version of the palette** that spans chat window width
+- **Consistent color scheme** across all UI elements
+- **Responsive design** - adapts to different window sizes
+- **Clean typography** with proper hierarchy
+- **Smooth animations** for loading and state changes
+
+### Interactive Elements
+- **Hover states** for clickable mentions and buttons
+- **Focus indicators** for keyboard navigation
+- **Visual feedback** for user actions
+- **Accessible color contrast** for readability
+- **Smooth transitions** between different states
+
+### Information Architecture
+- **Clear visual separation** between input area and conversation
+- **Organized message flow** with timestamps and speaker labels
+- **Intuitive chat selector** for conversation management
+- **Contextual information** displayed when relevant
+
+---
+
 ## Executive Summary
 
 This specification outlines the implementation of a cursor-like floating chat window functionality for Spark. The chat system enables users to interact with AI agents through a persistent overlay in the bottom-right corner of the screen, with support for conversation history and file modification capabilities.

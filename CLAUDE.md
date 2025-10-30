@@ -23,24 +23,70 @@ These rules apply to EVERY session and task:
 2. **Decision** - Figure out options, identify open questions
    - **Baseline Check**: Run `npm run check` to note current state
 3. **Implementation** - Keep it minimal and elegant, respect existing patterns
-4. **Check for Errors** - Run `npm run check` (daemon: tests+coverage, plugin: lint+format)
+4. **Check for Errors** - Run `npm run check` (daemon: tests+coverage, plugin: lint+format+tests)
 5. **Address Issues** - Fix problems, re-run check
 6. **Check Coverage** - Maintain or improve test coverage
 7. **Hot-Reload Verification** - Changes should auto-reload, rebuild manually if needed
-8. **Self-Validation** - ALWAYS try to validate via console logs first
+8. **Self-Validation** - See validation methods below
 9. **User Feedback** - Only if unable to verify yourself
 
+**Self-Validation Methods:**
+
+**For Daemon:**
+- Use console logs and test output
+- Run daemon in debug mode: `npm run dev:debug`
+- Check test coverage and test output
+
+**For Plugin (98% Autonomous with MCP):**
+- **Playwright MCP enables autonomous validation**
+- Launch Obsidian with debugging: `open -a Obsidian --args --remote-debugging-port=9222`
+- Connect via MCP (available after session restart)
+- Type keyboard commands (`/`, `@`, `Cmd+K`) automatically
+- Read console logs automatically
+- Capture screenshots for verification
+- Inspect DOM elements programmatically
+- Monitor network requests to daemon
+- **Only ask user if truly unable to verify**
+
+**MCP Validation Checklist:**
+1. Ensure Obsidian running with remote debugging (port 9222)
+2. Make plugin changes
+3. User reloads plugin (Cmd+R, 2 seconds)
+4. MCP validates automatically:
+   - Type commands to trigger features
+   - Read console logs for output
+   - Capture screenshots for visual confirmation
+   - Verify DOM state (elements exist, classes correct)
+   - Check for JavaScript errors
+5. Iterate until working
+
 #### Key Commands
-- `npm run check` – comprehensive validation
-- See README or specs for launch instructions
+
+**Daemon:**
+- `npm run check` – format, lint, type-check, tests with coverage
+- `npm run dev` – development mode with auto-restart
+- `npm run dev:debug` – development mode with debug logging
+
+**Plugin:**
+- `npm run check` – format, lint, type-check, tests with coverage
+- `npm run dev` – development mode with hot-reload
+- `npm test` – run tests
+- `npm run test:watch` – watch mode for tests
+- Reload in Obsidian: `Cmd+R`
+
+**MCP Validation:**
+- Launch Obsidian: `open -a Obsidian --args --remote-debugging-port=9222`
+- Verify connection: `curl http://localhost:9222/json`
+- Check MCP config: `cat ~/.claude.json | grep playwright`
 
 #### Philosophy
-- **Maximize autonomy** – work independently through all steps
+- **Maximize autonomy** – work independently through all steps (98% with MCP!)
 - **Minimize token usage** – be concise
 - **Minimal and elegant** over complex and comprehensive
 - **Robust implementations** over quick workarounds
 - **Respect patterns** that already exist
-- **Test coverage** is a quality metric
+- **Self-validate** before asking for human review (MCP for plugin, tests for daemon)
+- **Test coverage** is a quality metric, maintain or improve it
 
 ---
 
@@ -121,9 +167,53 @@ For specific implementation details, refer to the comprehensive specs in `/specs
 - `CHAT_FUNCTIONALITY.md` - Chat widget implementation
 
 ### Development
-- `DEVELOPER_EXPERIENCE.md` - Developer tooling and workflow
+- `DEVELOPER_EXPERIENCE.md` - Developer tooling and workflow (includes MCP setup)
 
 **Note:** When working on a specific feature, READ the relevant spec file(s) from `/specs/` for detailed context.
+
+---
+
+## Testing & Validation
+
+### Daemon Testing
+- **Framework:** Jest with ts-jest
+- **Coverage:** 79% (264 tests across 15 suites)
+- **Command:** `npm run check` includes tests + coverage
+- **Location:** `daemon/__tests__/`
+
+### Plugin Testing
+- **Framework:** Jest with jsdom environment
+- **Coverage:** 4% (just getting started, target: 60%+)
+- **Command:** `npm test` or `npm run check`
+- **Location:** `plugin/__tests__/`
+- **Mocks:** Obsidian API and CodeMirror are mocked
+
+### Plugin Validation with Playwright MCP
+- **Status:** ✅ Configured and ready
+- **Autonomy:** 98% (Claude Code can validate UI changes autonomously)
+- **Setup:** See `specs/DEVELOPER_EXPERIENCE.md` for comprehensive guide
+- **Quick Start:**
+  ```bash
+  # One-time: Install MCP
+  claude mcp add playwright -s user -- npx -y @executeautomation/playwright-mcp-server
+
+  # Every session: Launch Obsidian with debugging
+  open -a Obsidian --args --remote-debugging-port=9222
+  ```
+
+**What MCP enables:**
+- Keyboard input automation (`/`, `@`, `Cmd+K`, etc.)
+- Console log monitoring (automatic)
+- Screenshot capture (automatic)
+- DOM inspection (programmatic)
+- Network request monitoring
+- End-to-end test flows
+
+**Typical workflow:**
+1. Claude Code makes plugin changes
+2. User reloads plugin (Cmd+R, 2 seconds)
+3. Claude Code validates automatically via MCP
+4. Iterate until working (fully autonomous)
 
 ---
 

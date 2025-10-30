@@ -59,3 +59,9 @@ example-vault/.spark/chat-results/*
 
 # Add the conversations directory to VCS, but ignore all files inside
 example-vault/.spark/conversations/*
+
+# Coverage files
+coverage/
+
+# Claude Code Settings
+.claude/

@@ -3,10 +3,8 @@ import { Plugin } from 'obsidian';
 
 export interface SparkSettings {
 	enablePalette: boolean;
-	enableChat: boolean;
 	chatHotkey: string;
 	vaultPath: string;
-	sparkFolder: string;
 }
 
 export interface ISparkPlugin extends Plugin {

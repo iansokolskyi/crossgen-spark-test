@@ -78,6 +78,11 @@ export class CommandPaletteManager {
 	 * Handle editor change events
 	 */
 	private handleEditorChange(editor: Editor): void {
+		// Check if command palette is enabled
+		if (!this.plugin.settings.enablePalette) {
+			return;
+		}
+
 		if (this.isInserting) {
 			return;
 		}

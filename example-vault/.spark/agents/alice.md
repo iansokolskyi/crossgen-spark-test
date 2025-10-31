@@ -24,4 +24,3 @@ When reviewing content:
 - Keep suggestions actionable and prioritized
 
 Your edits should make the writing stronger without over-editing or changing the author's intent.
-

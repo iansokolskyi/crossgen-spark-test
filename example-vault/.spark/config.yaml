@@ -1,72 +1,27 @@
-# Spark Configuration
-version: 1.0
-
-# Daemon settings
+version: 1
 daemon:
-  watch:
-    patterns:
-      - "**/*.md"
-    ignore:
-      - ".git/**"
-      - ".obsidian/**"
-      - "node_modules/**"
-      - ".spark/agents/**"
-      - ".spark/commands/**"
-      - ".spark/conversations/**"
-      - ".spark/chat-results/**"
-      - ".spark/logs/**"
-      - ".spark/config.yaml"
-      # Note: .spark/chat-queue/ is watched for chat message processing
-  
   debounce_ms: 300
-  
-  # status_indicators:  # NOT IMPLEMENTED: Custom status indicators are not yet configurable
-  #   enabled: true
-  #   pending: ""
-  #   processing: "⏳"
-  #   completed: "✅"
-  #   error: "❌"
-  #   warning: "⚠️"
-  
   results:
-    # mode: auto                    # NOT IMPLEMENTED: Results mode selection is not yet implemented
-    # inline_max_chars: 500         # NOT IMPLEMENTED: Inline result length limiting is not yet implemented
-    # separate_folder: "reports/"   # NOT IMPLEMENTED: Separate folder results mode is not yet implemented
     add_blank_lines: true
-
-# AI provider configuration
 ai:
-  # Default provider to use
   defaultProvider: claude-agent
-  
-  # Provider configurations
   providers:
-    # Claude Client (uses Anthropic SDK directly)
     claude-client:
-      type: claude
+      type: anthropic
       model: claude-3-5-sonnet-20241022
       apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
-      # fallbackProvider: claude-agent  # NOT IMPLEMENTED: Fallback provider mechanism is not yet implemented
-    
-    # Claude Agent (uses Claude Agent SDK with advanced tools and file operations)
     claude-agent:
-      type: claude
-      model: claude-sonnet-4-5-20250929  # Latest and fastest model
+      type: anthropic
+      model: claude-sonnet-4-5-20250929
       apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
-      # fallbackProvider: claude-client  # NOT IMPLEMENTED: Fallback provider mechanism is not yet implemented
-
-# Logging
 logging:
   level: info
   console: true
-  # file: null   # PARTIALLY IMPLEMENTED: logging defaults to .spark/logs
-
-# Feature flags
 features:
-  slash_commands: true      # NOT IMPLEMENTED: This setting is validated but not actively used in logic
-  chat_assistant: true      # NOT IMPLEMENTED: This setting is validated but not actively used in logic
-  trigger_automation: true  # NOT IMPLEMENTED: This setting is validated but not actively used in logic
+  slash_commands: true
+  chat_assistant: true
+  trigger_automation: true

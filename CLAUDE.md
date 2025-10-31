@@ -10,14 +10,18 @@ These rules apply to EVERY session and task:
 
 **Purpose:** Maximize autonomy, minimize token usage, ensure quality
 
+⚠️ **CRITICAL: These rules are MANDATORY for ALL work (daemon AND plugin)**
+⚠️ **DO NOT skip self-validation. DO NOT mark tasks complete without verification.**
+
 #### Key Principles
 - **Minimize token usage** – No over-verbose explanations
 - **Track progress** – Use TODO lists when working through multi-step tasks
 - **Keep plans concise** – High-level approach only, no code in plans
-- **Self-validate** – Verify changes via console logs before asking for review
+- **Self-validate** – MANDATORY for daemon (tests) and plugin (MCP)
 - **Be autonomous** – Work through all steps independently when possible
 
 #### Workflow Steps
+** MANDATORY FOR BOTH DAEMON AND PLUGIN - NO EXCEPTIONS **
 
 1. **Plan** - Understand requirements, review context, create TODO list
 2. **Decision** - Figure out options, identify open questions
@@ -27,17 +31,34 @@ These rules apply to EVERY session and task:
 5. **Address Issues** - Fix problems, re-run check
 6. **Check Coverage** - Maintain or improve test coverage
 7. **Hot-Reload Verification** - Changes should auto-reload, rebuild manually if needed
-8. **Self-Validation** - See validation methods below
-9. **User Feedback** - Only if unable to verify yourself
+8. **Self-Validation** - MANDATORY. See validation methods below
+   - **Plugin changes**: MUST verify with MCP before completion
+   - **Daemon changes**: MUST verify with tests/console logs
+9. **User Feedback** - Only after self-validation is complete
 
 **Self-Validation Methods:**
 
-**For Daemon:**
-- Use console logs and test output
-- Run daemon in debug mode: `npm run dev:debug`
-- Check test coverage and test output
+**For Daemon - MANDATORY:**
+- ⚠️ **DO NOT mark daemon tasks complete without running tests**
+- Run `npm run check` (includes tests + coverage)
+- Verify test output shows passing tests
+- Check coverage maintains or improves (current: 79%)
+- Run daemon in debug mode if needed: `npm run dev:debug`
+- Use console logs to verify behavior
+- **Only ask user if tests pass but behavior seems wrong**
 
-**For Plugin (98% Autonomous with MCP):**
+**Daemon Validation Checklist (MANDATORY FOR ALL DAEMON CHANGES):**
+1. ✅ Run `npm run check` in daemon directory
+2. ✅ Verify all tests pass (currently 264 tests across 15 suites)
+3. ✅ Check coverage didn't decrease (maintain 79% or improve)
+4. ✅ Fix any TypeScript errors
+5. ✅ Fix any linting errors
+6. ✅ If behavior needs verification, run `npm run dev:debug`
+7. ✅ Check console logs show expected behavior
+8. ✅ Only then mark task as complete
+
+**For Plugin (98% Autonomous with MCP) - MANDATORY:**
+- ⚠️ **DO NOT mark plugin tasks complete without MCP verification**
 - **Playwright MCP enables autonomous validation**
 - Launch Obsidian with debugging: `open -a Obsidian --args --remote-debugging-port=9222`
 - Connect via MCP (available after session restart)
@@ -46,19 +67,25 @@ These rules apply to EVERY session and task:
 - Capture screenshots for verification
 - Inspect DOM elements programmatically
 - Monitor network requests to daemon
-- **Only ask user if truly unable to verify**
+- **Only ask user if truly unable to verify after attempting MCP**
 
-**MCP Validation Checklist:**
-1. Ensure Obsidian running with remote debugging (port 9222)
-2. Make plugin changes
-3. User reloads plugin (Cmd+R, 2 seconds)
-4. MCP validates automatically:
-   - Type commands to trigger features
-   - Read console logs for output
-   - Capture screenshots for visual confirmation
-   - Verify DOM state (elements exist, classes correct)
-   - Check for JavaScript errors
-5. Iterate until working
+**MCP Validation Checklist (MANDATORY FOR ALL PLUGIN CHANGES):**
+1. ✅ Check if Obsidian is running with debugging: `curl http://localhost:9222/json`
+2. ❌ If not running, launch it: `open -a Obsidian --args --remote-debugging-port=9222`
+3. 🔄 Make plugin changes
+4. 🔄 Ask user to:
+   - Reload plugin (Cmd+R, wait 2 seconds)
+   - Navigate to the feature being tested (e.g., open settings, trigger command palette)
+5. ✅ Verify via console/logs:
+   - Check Obsidian console (Option+Cmd+I) for errors
+   - Verify expected console.log output
+   - Ask user to test interaction and report results
+6. 📸 Alternative: Ask user for screenshots if needed
+7. 🔁 Iterate until verified working
+8. ✅ Only then mark task as complete
+
+**Note:** Full autonomous MCP keyboard automation requires Accessibility permissions for osascript.
+For now, verification requires user interaction + console log analysis.
 
 #### Key Commands
 

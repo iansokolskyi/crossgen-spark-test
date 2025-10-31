@@ -337,6 +337,11 @@
     transform: scale(0.95);
 }
 
+.spark-chat-send-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
 /* Placeholder for contenteditable */
 .spark-chat-input[data-empty="true"]::before {
     content: attr(data-placeholder);
@@ -398,6 +403,11 @@
 
 .spark-chat-close-btn:hover {
     background-color: var(--background-modifier-hover);
+}
+
+.spark-chat-close-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
 /* Chat Selector Buttons */
@@ -517,4 +527,173 @@ div:has(>.spark-conversation-suggestion-content):hover .spark-conversation-delet
     color: var(--text-normal);
     opacity: 1;
     visibility: visible;
+}
+
+/* Settings - Agent Management */
+.spark-agent-delete-btn {
+    background-color: var(--interactive-normal);
+    padding: 6px 10px;
+    border-radius: var(--button-radius);
+    transition: background-color 0.1s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.spark-agent-delete-btn:hover {
+    background-color: var(--interactive-hover);
+}
+
+/* Settings - Confirmation Modal Buttons */
+.spark-modal-delete-btn {
+    transition: filter 0.1s ease-in-out;
+}
+
+.spark-modal-delete-btn:hover {
+    filter: brightness(1.2);
+}
+
+.spark-modal-cancel-btn {
+    transition: background-color 0.1s ease-in-out;
+}
+
+.spark-modal-cancel-btn:hover {
+    background-color: var(--interactive-hover);
+}
+
+/* Settings - Tabbed Interface */
+.spark-settings-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 1em;
+}
+
+.spark-tab-button {
+    padding: 0.5em 1em;
+    border: none;
+    background-color: var(--background-primary) !important;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--text-normal);
+    transition: border-color 0.1s ease-in-out;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.spark-tab-button:hover {
+    color: var(--text-normal);
+    background-color: var(--background-modifier-hover);
+    border-bottom: none;
+    box-shadow: var(--input-shadow-hover);
+}
+
+.spark-tab-button.active {
+    border-bottom: 2px solid var(--text-normal);
+}
+
+.spark-tab-button:focus-visible {
+    box-shadow: var(--input-shadow);
+}
+
+/* Settings - Providers Accordion */
+.spark-providers-accordion {
+    margin-left: 1em;
+    border-left: 2px solid var(--background-modifier-border);
+    padding-left: 1em;
+}
+
+.spark-provider-item {
+    margin-bottom: 0.5em;
+    border-radius: 4px;
+    transition: background-color 0.1s ease-in-out;
+}
+
+.spark-provider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.5em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.spark-provider-header:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.spark-provider-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+}
+
+.spark-provider-arrow {
+    font-size: 0.8em;
+    transition: transform 0.1s ease-in-out;
+    display: inline-block;
+    width: 1em;
+}
+
+.spark-provider-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+.spark-provider-content {
+    display: none;
+    padding: 1em 0.5em 0.5em 1.5em;
+    margin-left: 1.5em;
+}
+
+.spark-provider-content.visible {
+    display: block;
+}
+
+/* Settings - Descriptions */
+.spark-settings-description {
+    margin-bottom: 1em;
+}
+
+.spark-providers-description {
+    margin-bottom: 1em;
+}
+
+/* Settings - Agent Form */
+.spark-agent-form {
+    display: none;
+    margin-left: 2em;
+    margin-bottom: 2em;
+    padding: 1em;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    max-width: 800px;
+}
+
+.spark-agent-form.visible {
+    display: block;
+}
+
+/* Settings - Agent Form Fields */
+.spark-agent-form .setting-item-info {
+    max-width: 200px;
+}
+
+.spark-agent-form .setting-item-control {
+    flex: 1;
+    min-width: 300px;
+}
+
+.spark-agent-form input[type="text"] {
+    width: 100%;
+    min-width: 300px;
+}
+
+/* Settings - Textarea */
+.spark-agent-instructions {
+    width: 100%;
+    font-family: var(--font-monospace);
+    min-height: 200px;
+    resize: vertical;
 }

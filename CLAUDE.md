@@ -23,8 +23,8 @@ These rules apply to EVERY session and task:
 #### Workflow Steps
 ** MANDATORY FOR BOTH DAEMON AND PLUGIN - NO EXCEPTIONS **
 
-1. **Plan** - Understand requirements, review context, create TODO list
-2. **Decision** - Figure out options, identify open questions
+1. **Plan** - Understand requirements, review context, create TODO list, track progress in separate FEATURE.md file.
+2. **Decision** - Figure out options, identify open questions, discus questions with me, I'll make decisions.
    - **Baseline Check**: Run `npm run check` to note current state
 3. **Implementation** - Keep it minimal and elegant, respect existing patterns
 4. **Check for Errors** - Run `npm run check` (daemon: tests+coverage, plugin: lint+format+tests)

@@ -23,7 +23,12 @@ import { ResultWriter } from './results/ResultWriter.js';
 import { CommandExecutor } from './execution/CommandExecutor.js';
 import { ChatQueueHandler } from './chat/ChatQueueHandler.js';
 import { VaultInitializer } from './init/VaultInitializer.js';
-import { ProviderRegistry, ClaudeDirectProvider, ClaudeAgentProvider } from './providers/index.js';
+import {
+  ProviderRegistry,
+  ClaudeDirectProvider,
+  ClaudeAgentProvider,
+  ClaudeCodeProvider,
+} from './providers/index.js';
 import { ProviderType } from './types/provider.js';
 
 export class SparkDaemon implements ISparkDaemon {
@@ -214,6 +219,11 @@ export class SparkDaemon implements ISparkDaemon {
     // Register Claude Agent Provider (Claude Agent SDK - with tools/file operations)
     registry.registerProvider('claude-agent', ProviderType.ANTHROPIC, (config) => {
       return new ClaudeAgentProvider(config);
+    });
+
+    // Register Claude Code Provider (Claude Code CLI - leverages Max subscription)
+    registry.registerProvider('claude-code', ProviderType.ANTHROPIC, (config) => {
+      return new ClaudeCodeProvider(config);
     });
 
     if (this.logger) {

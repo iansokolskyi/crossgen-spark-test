@@ -61,7 +61,7 @@ describe('VaultInitializer', () => {
 
             const content = readFileSync(configPath, 'utf-8');
             expect(content).toContain('version: 1');
-            expect(content).toContain('defaultProvider: claude-agent');
+            expect(content).toContain('defaultProvider: claude-code');
             expect(content).toContain('claude-sonnet-4-5-20250929');
         });
 

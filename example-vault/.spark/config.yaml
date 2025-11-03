@@ -4,7 +4,7 @@ daemon:
   results:
     add_blank_lines: true
 ai:
-  defaultProvider: claude-agent
+  defaultProvider: claude-code
   providers:
     claude-client:
       type: anthropic
@@ -16,6 +16,11 @@ ai:
       type: anthropic
       model: claude-sonnet-4-5-20250929
       apiKeyEnv: ANTHROPIC_API_KEY
+      maxTokens: 4096
+      temperature: 0.7
+    claude-code:
+      type: anthropic
+      model: claude-sonnet-4-5-20250929
       maxTokens: 4096
       temperature: 0.7
 logging:

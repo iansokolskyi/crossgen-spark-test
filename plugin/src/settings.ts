@@ -669,10 +669,10 @@ export class SparkSettingTab extends PluginSettingTab {
 
                 new Setting(providerContent)
                     .setName('API Key Environment Variable')
-                    .setDesc('Environment variable name for API key')
+                    .setDesc('Environment variable name for API key (optional for some providers like claude-code)')
                     .addText(text => text
-                        .setValue(providerConfig.apiKeyEnv)
-                        .onChange(value => providerConfig.apiKeyEnv = value));
+                        .setValue(providerConfig.apiKeyEnv ?? '')
+                        .onChange(value => providerConfig.apiKeyEnv = value || undefined));
 
                 new Setting(providerContent)
                     .setName('Max Tokens')

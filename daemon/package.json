@@ -1,6 +1,6 @@
 {
     "name": "spark-daemon",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Spark Assistant Daemon - Intelligence layer for Obsidian Spark",
     "main": "dist/index.js",
     "type": "module",
@@ -24,7 +24,8 @@
         "type-check": "tsc --noEmit",
         "check": "npm run format && npm run lint:fix && npm run type-check && npm run test:coverage",
         "clean": "rm -rf dist coverage",
-        "reset": "npm run clean && npm install && npm run build"
+        "reset": "npm run clean && npm install && npm run build",
+        "version": "node version-bump.mjs && git add package.json"
     },
     "keywords": [
         "obsidian",

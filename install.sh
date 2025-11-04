@@ -108,17 +108,17 @@ touch "$PLUGIN_DIR/.hotreload"
 echo -e "${GREEN}✓ Plugin installed to: $PLUGIN_DIR${NC}"
 
 # Install Hot Reload plugin for development
-echo -e "${YELLOW}→ Installing Hot Reload plugin for development...${NC}"
-HOT_RELOAD_DIR="$VAULT_PATH/.obsidian/plugins/hot-reload"
-if [ -d "$HOT_RELOAD_DIR" ]; then
-    echo -e "${BLUE}  ℹ Hot Reload already installed, updating...${NC}"
-    cd "$HOT_RELOAD_DIR"
-    git pull --quiet
-    cd "$SCRIPT_DIR"
-else
-    git clone --quiet https://github.com/pjeby/hot-reload.git "$HOT_RELOAD_DIR"
-fi
-echo -e "${GREEN}✓ Hot Reload plugin installed${NC}"
+# echo -e "${YELLOW}→ Installing Hot Reload plugin for development...${NC}"
+# HOT_RELOAD_DIR="$VAULT_PATH/.obsidian/plugins/hot-reload"
+# if [ -d "$HOT_RELOAD_DIR" ]; then
+#     echo -e "${BLUE}  ℹ Hot Reload already installed, updating...${NC}"
+#     cd "$HOT_RELOAD_DIR"
+#     git pull --quiet
+#     cd "$SCRIPT_DIR"
+# else
+#     git clone --quiet https://github.com/pjeby/hot-reload.git "$HOT_RELOAD_DIR"
+# fi
+# echo -e "${GREEN}✓ Hot Reload plugin installed${NC}"
 
 # Enable plugins in community-plugins.json
 echo -e "${YELLOW}→ Enabling plugins in Obsidian config...${NC}"

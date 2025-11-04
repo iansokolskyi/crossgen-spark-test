@@ -10,6 +10,7 @@ import type { CommandExecutor } from '../execution/CommandExecutor.js';
 import type { MentionParser } from '../parser/MentionParser.js';
 import type { ParsedCommand, ParsedMention } from '../types/parser.js';
 import { ErrorWriter } from '../results/ErrorWriter.js';
+import { ErrorHandler } from '../errors/ErrorHandler.js';
 
 export class ChatQueueHandler {
   private errorWriter: ErrorWriter;
@@ -242,13 +243,23 @@ export class ChatQueueHandler {
     // Match: Claude API error: 400 {"type":"error","error":{"message":"..."}}
     const jsonMatch = message.match(/\{.*?"message"\s*:\s*"([^"]+)"/);
     if (jsonMatch && jsonMatch[1]) {
-      return jsonMatch[1];
+      message = jsonMatch[1];
+    } else {
+      // Clean up common error prefixes
+      message = message
+        .replace(/^Claude Agent SDK error:\s*/, '')
+        .replace(/^Claude API error:\s*\d+\s*/, '');
     }
 
-    // Clean up common error prefixes
-    message = message
-      .replace(/^Claude Agent SDK error:\s*/, '')
-      .replace(/^Claude API error:\s*\d+\s*/, '');
+    // Add helpful suggestions for SparkErrors (reuse ErrorHandler logic)
+    if (error instanceof Error && 'code' in error) {
+      const sparkError = error as { code: string; context?: Record<string, unknown> };
+      const suggestions = ErrorHandler.getSuggestions(sparkError.code, error);
+      if (suggestions.length > 0) {
+        message +=
+          '\n\n💡 **Suggestions:**\n' + suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n');
+      }
+    }
 
     return message || 'An unexpected error occurred';
   }

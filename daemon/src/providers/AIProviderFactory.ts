@@ -77,6 +77,14 @@ export class AIProviderFactory {
     agentConfig?: { provider?: string; model?: string; temperature?: number; maxTokens?: number }
   ): IAIProvider {
     const providerName = agentConfig?.provider || aiConfig.defaultProvider;
+
+    this.logger.debug('Selecting provider', {
+      agentRequestedProvider: agentConfig?.provider,
+      defaultProvider: aiConfig.defaultProvider,
+      selectedProvider: providerName,
+      configuredProviders: Object.keys(aiConfig.providers),
+    });
+
     const providerConfig = aiConfig.providers[providerName];
 
     if (!providerConfig) {

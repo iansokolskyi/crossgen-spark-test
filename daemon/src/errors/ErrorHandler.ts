@@ -67,7 +67,7 @@ export class ErrorHandler {
     console.error(`   ${error.message}`);
 
     // Add suggestions based on error code
-    const suggestions = this.getSuggestions(error.code, error);
+    const suggestions = ErrorHandler.getSuggestions(error.code, error);
     if (suggestions.length > 0) {
       console.error('');
       console.error('💡 Suggestions:');
@@ -83,7 +83,7 @@ export class ErrorHandler {
    * Get user-friendly suggestions based on error code
    */
   // eslint-disable-next-line complexity, max-lines-per-function
-  private getSuggestions(errorCode: string, error?: unknown): string[] {
+  public static getSuggestions(errorCode: string, error?: unknown): string[] {
     switch (errorCode) {
       case 'API_KEY_NOT_SET': {
         const envVar =

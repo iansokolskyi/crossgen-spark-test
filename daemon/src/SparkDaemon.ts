@@ -254,21 +254,32 @@ export class SparkDaemon implements ISparkDaemon {
       // Update config
       this.config = newConfig;
 
-      // Clear AI provider cache so new config is used
-      if (this.commandExecutor) {
-        // Note: We can't directly access providerFactory, but recreating CommandExecutor
-        // will create a new factory with the new config
+      // Reinitialize AI components with new config
+      if (this.commandExecutor && this.mentionParser && this.logger) {
+        // Recreate context loader and result writer
         this.contextLoader = new ContextLoader(this.vaultPath);
         this.resultWriter = new ResultWriter();
+
+        // Recreate command executor with new config
+        // This creates a new AIProviderFactory instance with fresh cache
         this.commandExecutor = new CommandExecutor(
           this.contextLoader,
           this.resultWriter,
           this.config,
           this.vaultPath
         );
-        if (this.logger) {
-          this.logger.info('AI components reinitialized with new config');
-        }
+
+        // Recreate chat queue handler with new command executor
+        // This ensures chat commands use the new config
+        this.chatQueueHandler = new ChatQueueHandler(
+          this.vaultPath,
+          this.commandExecutor,
+          this.mentionParser,
+          this.logger
+        );
+
+        this.logger.info('AI components reinitialized with new config');
+        this.logger.debug('Provider cache cleared, will use new config for future requests');
       }
 
       // Update logger with new config (singleton pattern - don't recreate)

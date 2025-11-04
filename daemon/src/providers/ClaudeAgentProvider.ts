@@ -250,7 +250,15 @@ export class ClaudeAgentProvider implements IAIProvider {
   }
 
   getAvailableModels(): string[] {
-    return ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'];
+    return [
+      // Active 4.x models (recommended)
+      'claude-sonnet-4-5-20250929',
+      'claude-haiku-4-5-20251001',
+      'claude-opus-4-1-20250805',
+      // Active 3.x models
+      'claude-3-5-haiku-20241022',
+      'claude-3-haiku-20240307',
+    ];
   }
 
   canFallbackTo(providerName: string): boolean {

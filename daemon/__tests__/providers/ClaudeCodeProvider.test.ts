@@ -83,10 +83,9 @@ describe('ClaudeCodeProvider', () => {
 
       const models = provider.getAvailableModels();
 
-      expect(models).toContain('claude-sonnet-4-5');
-      expect(models).toContain('claude-3-5-sonnet-20241022');
+      expect(models).toContain('claude-sonnet-4-5-20250929');
       expect(models).toContain('claude-3-5-haiku-20241022');
-      expect(models).toContain('claude-3-opus-20240229');
+      expect(models).toContain('claude-3-haiku-20240307');
     });
   });
 

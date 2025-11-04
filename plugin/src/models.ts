@@ -7,10 +7,11 @@ export enum ProviderType {
 
 /**
  * Available Anthropic Claude models
- * Updated: January 2025
+ * Updated: November 2024 (only active models)
+ * Source: https://docs.claude.com/en/docs/about-claude/model-deprecations
  */
 export enum ClaudeModel {
-    // Claude 4.5 Family (Latest)
+    // Claude 4.5 Family (Latest - Recommended)
     SONNET_4_5 = 'claude-sonnet-4-5-20250929',
     HAIKU_4_5 = 'claude-haiku-4-5-20251001',
 
@@ -21,14 +22,10 @@ export enum ClaudeModel {
     SONNET_4 = 'claude-sonnet-4-20250514',
     OPUS_4 = 'claude-opus-4-20250514',
 
-    // Claude 3.7 Family
-    SONNET_3_7 = 'claude-3-7-sonnet-20250219',
-
-    // Claude 3.5 Family
+    // Claude 3.5 Family (Active)
     HAIKU_3_5 = 'claude-3-5-haiku-20241022',
-    SONNET_3_5 = 'claude-3-5-sonnet-20241022',
 
-    // Claude 3 Family (Legacy)
+    // Claude 3 Family (Active)
     HAIKU_3 = 'claude-3-haiku-20240307',
 }
 
@@ -39,9 +36,7 @@ export const MODEL_LABELS: Record<string, string> = {
     [ClaudeModel.OPUS_4_1]: 'Claude Opus 4.1',
     [ClaudeModel.SONNET_4]: 'Claude Sonnet 4',
     [ClaudeModel.OPUS_4]: 'Claude Opus 4',
-    [ClaudeModel.SONNET_3_7]: 'Claude Sonnet 3.7',
     [ClaudeModel.HAIKU_3_5]: 'Claude Haiku 3.5',
-    [ClaudeModel.SONNET_3_5]: 'Claude Sonnet 3.5',
     [ClaudeModel.HAIKU_3]: 'Claude Haiku 3',
 };
 

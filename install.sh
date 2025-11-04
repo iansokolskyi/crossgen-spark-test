@@ -72,13 +72,13 @@ echo -e "${GREEN}✓ Plugin built successfully${NC}"
 echo ""
 
 # Set up git hooks
-cd "$SCRIPT_DIR"
-if [ -d "$SCRIPT_DIR/.githooks" ]; then
-    echo -e "${YELLOW}→ Setting up git hooks...${NC}"
-    git config core.hooksPath .githooks
-    echo -e "${GREEN}✓ Git hooks configured${NC}"
-    echo ""
-fi
+# cd "$SCRIPT_DIR"
+# if [ -d "$SCRIPT_DIR/.githooks" ]; then
+#     echo -e "${YELLOW}→ Setting up git hooks...${NC}"
+#     git config core.hooksPath .githooks
+#     echo -e "${GREEN}✓ Git hooks configured${NC}"
+#     echo ""
+# fi
 
 # Check if vault path is provided, default to example-vault
 if [ -n "$1" ]; then

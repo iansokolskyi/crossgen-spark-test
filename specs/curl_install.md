@@ -160,8 +160,11 @@ docker run --rm ubuntu:22.04 bash -c "
 **Key Fixes:**
 1. nvm.sh returns non-zero exit code in non-interactive shells - fixed by temporarily disabling `set -e` during sourcing
 2. Git is optional - script downloads repo as tarball when git is unavailable
+3. macOS Xcode popup prevented - checks if git actually works before using it (not just the stub)
 
 **Confirmed:** Installation works on Ubuntu 22.04 with **only curl and tar** installed!
+
+**macOS:** No Xcode Command Line Tools required - uses tarball download when git stub detected
 
 ## Docker Testing Results (Earlier)
 

@@ -40,10 +40,30 @@ if [ ! -d "$SCRIPT_DIR/.git" ]; then
     REPO_URL="${REPO_URL:-https://github.com/automazeio/crossgen-spark}"
     REPO_NAME=$(basename "$REPO_URL" .git)
     
+    # Check if git is actually usable (not just the macOS Xcode stub)
+    GIT_USABLE=false
     if command -v git &> /dev/null; then
+        GIT_PATH=$(command -v git)
+        
+        # On macOS, /usr/bin/git is a stub that triggers Xcode popup
+        # Check if Xcode Command Line Tools are actually installed
+        if [[ "$OSTYPE" == "darwin"* ]] && [ "$GIT_PATH" = "/usr/bin/git" ]; then
+            # Check if Xcode CLT is installed by checking for xcode-select path
+            if xcode-select -p &> /dev/null; then
+                GIT_USABLE=true
+            else
+                echo -e "${BLUE}ℹ  Git stub detected (would trigger Xcode popup), using tarball download${NC}"
+            fi
+        else
+            # Not macOS stub, assume git works
+            GIT_USABLE=true
+        fi
+    fi
+    
+    if [ "$GIT_USABLE" = true ]; then
         git clone --depth 1 "$REPO_URL.git"
     else
-        # Git not available, download as tarball
+        # Git not available or would trigger Xcode popup, download as tarball
         $DOWNLOAD_CMD "$REPO_URL/archive/refs/heads/main.tar.gz" | tar -xz
         mv "$REPO_NAME-main" "$REPO_NAME"
     fi

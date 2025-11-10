@@ -133,10 +133,51 @@ DEV_MODE=1:
 - [ ] Verify DEV_MODE=1 on macOS
 - [ ] Verify DEV_MODE=1 on Ubuntu
 
+## Testing with Public Test Repo
+
+**Test Repository (Public):**
+- Repo: https://github.com/iansokolskyi/crossgen-spark-test
+- Raw install.sh: https://raw.githubusercontent.com/iansokolskyi/crossgen-spark-test/main/install.sh
+
+**Production Commands (when main repo is public):**
+```bash
+# Basic install (defaults to automazeio/crossgen-spark)
+curl -fsSL https://raw.githubusercontent.com/automazeio/crossgen-spark/main/install.sh | bash
+
+# Development mode (hot reload + gh CLI)
+DEV_MODE=1 curl -fsSL https://raw.githubusercontent.com/automazeio/crossgen-spark/main/install.sh | bash
+
+# Custom vault path
+curl -fsSL https://raw.githubusercontent.com/automazeio/crossgen-spark/main/install.sh | bash -s -- ~/Documents/MyVault
+```
+
+**Test Commands (using test repo):**
+```bash
+# Basic test (production mode)
+curl -fsSL https://raw.githubusercontent.com/iansokolskyi/crossgen-spark-test/main/install.sh | bash
+
+# Or override repo URL via environment variable
+REPO_URL=https://github.com/iansokolskyi/crossgen-spark-test curl -fsSL https://raw.githubusercontent.com/iansokolskyi/crossgen-spark-test/main/install.sh | bash
+
+# Development mode with test repo
+DEV_MODE=1 curl -fsSL https://raw.githubusercontent.com/iansokolskyi/crossgen-spark-test/main/install.sh | bash
+
+# Custom vault path with test repo
+curl -fsSL https://raw.githubusercontent.com/iansokolskyi/crossgen-spark-test/main/install.sh | bash -s -- ~/Documents/TestVault
+```
+
+**Update Test Repo:**
+```bash
+# Push changes to test repo
+cd /Users/ian/Code/crossgen-spark
+git push test main
+```
+
 ## Notes
 
 - API key handling will be added to plugin settings later (not blocking for installation)
 - Making gh CLI optional reduces friction on fresh machines
 - nvm ensures consistent Node.js installation across platforms
 - Linux testing requires actual VM/container environment (not available in current session)
+- Using gist allows testing without making repo public
 

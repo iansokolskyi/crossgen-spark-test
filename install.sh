@@ -35,15 +35,20 @@ if [ ! -d "$SCRIPT_DIR/.git" ]; then
     trap "rm -rf '$TEMP_DIR'" EXIT
     
     cd "$TEMP_DIR"
+    
+    # Use REPO_URL environment variable or default to main repo
+    REPO_URL="${REPO_URL:-https://github.com/automazeio/crossgen-spark}"
+    REPO_NAME=$(basename "$REPO_URL" .git)
+    
     if command -v git &> /dev/null; then
-        git clone --depth 1 https://github.com/automazeio/crossgen-spark.git
+        git clone --depth 1 "$REPO_URL.git"
     else
         # Git not available, download as tarball
-        $DOWNLOAD_CMD https://github.com/automazeio/crossgen-spark/archive/refs/heads/main.tar.gz | tar -xz
-        mv crossgen-spark-main crossgen-spark
+        $DOWNLOAD_CMD "$REPO_URL/archive/refs/heads/main.tar.gz" | tar -xz
+        mv "$REPO_NAME-main" "$REPO_NAME"
     fi
     
-    cd crossgen-spark
+    cd "$REPO_NAME"
     SCRIPT_DIR="$(pwd)"
     echo -e "${GREEN}✓ Repository downloaded${NC}"
     echo ""

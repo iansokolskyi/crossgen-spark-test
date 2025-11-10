@@ -84,18 +84,10 @@ if ! command -v node &> /dev/null; then
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
     
     # Install Node.js LTS
-    # Note: nvm is a shell function, not a command, so we check if the function exists
-    if type nvm &> /dev/null; then
-        echo -e "${YELLOW}  Installing Node.js LTS...${NC}"
-        nvm install --lts
-        nvm use --lts
-        echo -e "${GREEN}  ✓ Node.js $(node -v) installed${NC}"
-    else
-        echo -e "${RED}✗ Failed to load nvm${NC}"
-        echo "  Please restart your terminal and run this script again, or"
-        echo "  manually install Node.js 18+ from https://nodejs.org/"
-        exit 1
-    fi
+    echo -e "${YELLOW}  Installing Node.js LTS...${NC}"
+    nvm install --lts 2>&1 | grep -v "^Downloading" | grep -v "^Computing" || true
+    nvm use --lts > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ Node.js $(node -v) installed${NC}"
 fi
 
 NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)

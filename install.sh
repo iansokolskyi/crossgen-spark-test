@@ -14,11 +14,15 @@ SKIP_GH="${SKIP_GH:-0}"
 AUTO_START="${AUTO_START:-1}"
 DEV_MODE="${DEV_MODE:-0}"  # Set to 1 for development features (hot reload, gh CLI)
 
-# Detect download tool (curl or wget)
+# Detect download tool (curl or wget) and save full path
 if command -v curl &> /dev/null; then
-    DOWNLOAD_CMD="curl -fsSL"
+    CURL_FULL_PATH=$(command -v curl)
+    DOWNLOAD_CMD="$CURL_FULL_PATH -fsSL"
+    DOWNLOAD_TOOL="curl"
 elif command -v wget &> /dev/null; then
-    DOWNLOAD_CMD="wget -qO-"
+    WGET_FULL_PATH=$(command -v wget)
+    DOWNLOAD_CMD="$WGET_FULL_PATH -qO-"
+    DOWNLOAD_TOOL="wget"
 else
     echo -e "${RED}✗ Neither curl nor wget found${NC}"
     echo "  Please install curl or wget to continue"
@@ -105,9 +109,18 @@ if ! command -v node &> /dev/null; then
         fi
         
         if [ "$NVM_NEEDS_WORKAROUND" = true ]; then
-            # Download nvm installer to temp file
+            # Download nvm installer to temp file (using full path to curl/wget)
             NVM_INSTALLER=$(mktemp)
-            $DOWNLOAD_CMD https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
+            echo -e "${BLUE}  Debug: DOWNLOAD_TOOL=$DOWNLOAD_TOOL${NC}"
+            echo -e "${BLUE}  Debug: CURL_FULL_PATH=$CURL_FULL_PATH${NC}"
+            echo -e "${BLUE}  Debug: Current PATH=$PATH${NC}"
+            
+            if [ "$DOWNLOAD_TOOL" = "curl" ]; then
+                echo -e "${BLUE}  Downloading with: $CURL_FULL_PATH${NC}"
+                "$CURL_FULL_PATH" -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
+            else
+                "$WGET_FULL_PATH" -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
+            fi
             
             # Run with /usr/bin temporarily hidden from PATH to avoid git stub detection
             ORIGINAL_PATH="$PATH"

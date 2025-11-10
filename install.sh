@@ -255,6 +255,11 @@ echo -e "${GREEN}✓ CLI permissions set${NC}"
 
 echo -e "${YELLOW}→ Linking daemon globally...${NC}"
 npm link
+
+# Add npm global bin to PATH so spark command is immediately available
+NPM_BIN=$(npm bin -g 2>/dev/null || echo "$HOME/.nvm/versions/node/$(nvm current)/bin")
+export PATH="$NPM_BIN:$PATH"
+
 echo -e "${GREEN}✓ Daemon linked globally (spark command available)${NC}"
 echo ""
 
@@ -460,8 +465,29 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${GREEN}✓ Installation complete!${NC}"
 echo ""
 
+# Initialize vault structure (.spark directory with config, agents, commands)
+echo -e "${YELLOW}→ Initializing vault structure...${NC}"
+# Start daemon briefly to trigger initialization, then stop it
+spark start "$VAULT_PATH" > /dev/null 2>&1 &
+INIT_PID=$!
+sleep 3  # Give it time to initialize
+
+# Stop the initialization daemon
+if ps -p $INIT_PID > /dev/null 2>&1; then
+    kill $INIT_PID 2>/dev/null || true
+    sleep 1
+fi
+
+# Verify initialization
+if [ -f "$VAULT_PATH/.spark/config.yaml" ]; then
+    echo -e "${GREEN}✓ Vault initialized${NC}"
+else
+    echo -e "${YELLOW}⚠ Vault initialization may be incomplete${NC}"
+fi
+echo ""
+
 # Auto-start daemon if API key is set and AUTO_START is enabled
-if [ "$AUTO_START" = "1" ] && [ -n "$ANTHROPIC_API_KEY" ]; then
+if [ "$AUTO_START" = "1" ]; then
     echo -e "${YELLOW}→ Starting daemon in background...${NC}"
     spark start "$VAULT_PATH" > /dev/null 2>&1 &
     DAEMON_PID=$!

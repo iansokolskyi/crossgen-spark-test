@@ -97,39 +97,33 @@ if ! command -v node &> /dev/null; then
         echo -e "${YELLOW}  Installing nvm...${NC}"
         
         # On macOS without Xcode CLT, nvm installer will exit if it finds /usr/bin/git
-        # Save paths and temporarily hide /usr/bin from PATH
-        SAVED_CURL_PATH=""
-        SAVED_WGET_PATH=""
-        SAVED_PATH=""
-        
+        # Work around this by downloading installer to temp file, then running with modified PATH
+        NVM_NEEDS_WORKAROUND=false
         if [[ "$OSTYPE" == "darwin"* ]] && [ -f "/usr/bin/git" ] && ! xcode-select -p &> /dev/null; then
-            echo -e "${BLUE}  ℹ  Working around macOS git stub (no Xcode CLT)${NC}"
-            # Save full paths to curl/wget before modifying PATH
-            if command -v curl &> /dev/null; then
-                SAVED_CURL_PATH=$(command -v curl)
-            fi
-            if command -v wget &> /dev/null; then
-                SAVED_WGET_PATH=$(command -v wget)
-            fi
-            SAVED_PATH="$PATH"
+            NVM_NEEDS_WORKAROUND=true
+            echo -e "${BLUE}  ℹ  Applying macOS workaround (no Xcode CLT detected)${NC}"
+        fi
+        
+        if [ "$NVM_NEEDS_WORKAROUND" = true ]; then
+            # Download nvm installer to temp file
+            NVM_INSTALLER=$(mktemp)
+            $DOWNLOAD_CMD https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
+            
+            # Run with /usr/bin temporarily hidden from PATH to avoid git stub detection
+            ORIGINAL_PATH="$PATH"
             PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '^/usr/bin$' | tr '\n' ':' | sed 's/:$//')
             export PATH
-        fi
-        
-        # Set METHOD=script to force nvm to download as tarball (avoids git entirely)
-        # Use saved curl/wget path if we hid /usr/bin
-        if [ -n "$SAVED_CURL_PATH" ]; then
-            $SAVED_CURL_PATH -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | METHOD=script bash
-        elif [ -n "$SAVED_WGET_PATH" ]; then
-            $SAVED_WGET_PATH -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | METHOD=script bash
-        else
-            $DOWNLOAD_CMD https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | METHOD=script bash
-        fi
-        
-        # Restore PATH immediately after nvm installation
-        if [ -n "$SAVED_PATH" ]; then
-            PATH="$SAVED_PATH"
+            
+            METHOD=script bash "$NVM_INSTALLER"
+            
+            # Restore PATH
+            PATH="$ORIGINAL_PATH"
             export PATH
+            
+            rm -f "$NVM_INSTALLER"
+        else
+            # Normal installation
+            $DOWNLOAD_CMD https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | METHOD=script bash
         fi
         
         echo -e "${GREEN}  ✓ nvm installed${NC}"

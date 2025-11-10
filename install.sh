@@ -257,22 +257,22 @@ echo -e "${YELLOW}→ Linking daemon globally...${NC}"
 npm link
 
 # Add npm global bin to PATH so spark command is immediately available
-# Try multiple methods to find npm's global bin directory
-if command -v npm &> /dev/null; then
-    NPM_BIN=$(npm bin -g 2>/dev/null || true)
-    if [ -z "$NPM_BIN" ] || [ ! -d "$NPM_BIN" ]; then
-        # Fallback: use npm prefix
-        NPM_PREFIX=$(npm prefix -g 2>/dev/null || true)
-        if [ -n "$NPM_PREFIX" ]; then
-            NPM_BIN="$NPM_PREFIX/bin"
-        fi
-    fi
-    if [ -n "$NPM_BIN" ] && [ -d "$NPM_BIN" ]; then
-        export PATH="$NPM_BIN:$PATH"
-    fi
+NPM_PREFIX=$(npm prefix -g 2>/dev/null)
+if [ -n "$NPM_PREFIX" ]; then
+    NPM_BIN="$NPM_PREFIX/bin"
+    export PATH="$NPM_BIN:$PATH"
+    echo -e "${GREEN}✓ Daemon linked globally${NC}"
+    echo -e "${GREEN}✓ Added $NPM_BIN to PATH${NC}"
+else
+    echo -e "${YELLOW}⚠ Could not detect npm global bin path${NC}"
 fi
 
-echo -e "${GREEN}✓ Daemon linked globally (spark command available)${NC}"
+# Verify spark command is available
+if command -v spark &> /dev/null; then
+    echo -e "${GREEN}✓ spark command is available${NC}"
+else
+    echo -e "${YELLOW}⚠ spark command not in PATH - you may need to restart your shell${NC}"
+fi
 echo ""
 
 # Install plugin

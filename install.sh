@@ -79,9 +79,17 @@ if ! command -v node &> /dev/null; then
         echo -e "${GREEN}  ✓ nvm installed${NC}"
     fi
     
-    # Load nvm
+    # Load nvm (temporarily disable set -e as nvm.sh may return non-zero)
     export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+    set +e
+    \. "$NVM_DIR/nvm.sh"
+    NVM_LOAD_STATUS=$?
+    set -e
+    
+    if [ $NVM_LOAD_STATUS -ne 0 ]; then
+        echo -e "${RED}✗ Failed to load nvm (exit code: $NVM_LOAD_STATUS)${NC}"
+        exit 1
+    fi
     
     # Install Node.js LTS
     echo -e "${YELLOW}  Installing Node.js LTS...${NC}"

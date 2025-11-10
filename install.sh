@@ -117,18 +117,19 @@ if ! command -v node &> /dev/null; then
                 "$WGET_FULL_PATH" -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
             fi
             
-            # Create temp bin directory with curl/wget symlink so nvm installer can find it
-            # This allows us to hide /usr/bin (git stub) while keeping curl accessible
+            # Create temp bin directory with a fake git that does nothing
+            # This prevents nvm installer from detecting the git stub and exiting
             TEMP_BIN=$(mktemp -d)
-            if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-                ln -s "$CURL_FULL_PATH" "$TEMP_BIN/curl"
-            else
-                ln -s "$WGET_FULL_PATH" "$TEMP_BIN/wget"
-            fi
+            cat > "$TEMP_BIN/git" << 'EOF'
+#!/bin/bash
+# Fake git to prevent nvm installer from detecting Xcode CLT requirement
+exit 0
+EOF
+            chmod +x "$TEMP_BIN/git"
             
-            # Remove /usr/bin from PATH (hides git stub) but add temp bin (keeps curl/wget)
+            # Prepend temp bin to PATH so our fake git is found first
             ORIGINAL_PATH="$PATH"
-            PATH="$TEMP_BIN:$(echo "$PATH" | tr ':' '\n' | grep -v '^/usr/bin$' | tr '\n' ':' | sed 's/:$//')"
+            PATH="$TEMP_BIN:$PATH"
             export PATH
             
             METHOD=script bash "$NVM_INSTALLER"

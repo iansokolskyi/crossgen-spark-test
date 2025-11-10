@@ -109,30 +109,34 @@ if ! command -v node &> /dev/null; then
         fi
         
         if [ "$NVM_NEEDS_WORKAROUND" = true ]; then
-            # Download nvm installer to temp file (using full path to curl/wget)
+            # Download nvm installer to temp file
             NVM_INSTALLER=$(mktemp)
-            echo -e "${BLUE}  Debug: DOWNLOAD_TOOL=$DOWNLOAD_TOOL${NC}"
-            echo -e "${BLUE}  Debug: CURL_FULL_PATH=$CURL_FULL_PATH${NC}"
-            echo -e "${BLUE}  Debug: Current PATH=$PATH${NC}"
-            
             if [ "$DOWNLOAD_TOOL" = "curl" ]; then
-                echo -e "${BLUE}  Downloading with: $CURL_FULL_PATH${NC}"
                 "$CURL_FULL_PATH" -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
             else
                 "$WGET_FULL_PATH" -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh > "$NVM_INSTALLER"
             fi
             
-            # Run with /usr/bin temporarily hidden from PATH to avoid git stub detection
+            # Create temp bin directory with curl/wget symlink so nvm installer can find it
+            # This allows us to hide /usr/bin (git stub) while keeping curl accessible
+            TEMP_BIN=$(mktemp -d)
+            if [ "$DOWNLOAD_TOOL" = "curl" ]; then
+                ln -s "$CURL_FULL_PATH" "$TEMP_BIN/curl"
+            else
+                ln -s "$WGET_FULL_PATH" "$TEMP_BIN/wget"
+            fi
+            
+            # Remove /usr/bin from PATH (hides git stub) but add temp bin (keeps curl/wget)
             ORIGINAL_PATH="$PATH"
-            PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '^/usr/bin$' | tr '\n' ':' | sed 's/:$//')
+            PATH="$TEMP_BIN:$(echo "$PATH" | tr ':' '\n' | grep -v '^/usr/bin$' | tr '\n' ':' | sed 's/:$//')"
             export PATH
             
             METHOD=script bash "$NVM_INSTALLER"
             
-            # Restore PATH
+            # Restore PATH and clean up
             PATH="$ORIGINAL_PATH"
             export PATH
-            
+            rm -rf "$TEMP_BIN"
             rm -f "$NVM_INSTALLER"
         else
             # Normal installation

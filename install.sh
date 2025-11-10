@@ -546,17 +546,37 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${GREEN}✓ Installation complete!${NC}"
 echo ""
 
+# Provide clear instructions for making spark available
+echo -e "${YELLOW}⚠️  IMPORTANT: To use the 'spark' command${NC}"
+echo ""
+echo -e "${GREEN}Run this in your current terminal:${NC}"
+echo -e "${BLUE}    source ~/.zshrc${NC}"
+echo ""
+echo -e "Or open a new terminal window (spark will be available automatically)"
+echo ""
+
 # Initialize vault structure (.spark directory with config, agents, commands)
 echo -e "${YELLOW}→ Initializing vault structure...${NC}"
-# Start daemon briefly to trigger initialization, then stop it
-spark start "$VAULT_PATH" > /dev/null 2>&1 &
-INIT_PID=$!
-sleep 3  # Give it time to initialize
 
-# Stop the initialization daemon
-if ps -p $INIT_PID > /dev/null 2>&1; then
-    kill $INIT_PID 2>/dev/null || true
-    sleep 1
+# Use full path to spark binary since PATH might not be updated in this shell
+SPARK_BIN=""
+if command -v spark &> /dev/null; then
+    SPARK_BIN="spark"
+elif [ -n "$NODE_BIN_DIR" ] && [ -f "$NODE_BIN_DIR/spark" ]; then
+    SPARK_BIN="$NODE_BIN_DIR/spark"
+fi
+
+if [ -n "$SPARK_BIN" ]; then
+    # Start daemon briefly to trigger initialization, then stop it
+    "$SPARK_BIN" start "$VAULT_PATH" > /dev/null 2>&1 &
+    INIT_PID=$!
+    sleep 3  # Give it time to initialize
+    
+    # Stop the initialization daemon
+    if ps -p $INIT_PID > /dev/null 2>&1; then
+        kill $INIT_PID 2>/dev/null || true
+        sleep 1
+    fi
 fi
 
 # Verify initialization
@@ -564,36 +584,57 @@ if [ -f "$VAULT_PATH/.spark/config.yaml" ]; then
     echo -e "${GREEN}✓ Vault initialized${NC}"
 else
     echo -e "${YELLOW}⚠ Vault initialization may be incomplete${NC}"
+    echo "  Vault will be initialized when daemon starts for the first time"
 fi
 echo ""
 
 # Auto-start daemon if API key is set and AUTO_START is enabled
 if [ "$AUTO_START" = "1" ]; then
-    echo -e "${YELLOW}→ Starting daemon in background...${NC}"
-    spark start "$VAULT_PATH" > /dev/null 2>&1 &
-    DAEMON_PID=$!
-    sleep 2
-    
-    if ps -p $DAEMON_PID > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Daemon started (PID: $DAEMON_PID)${NC}"
+    # Use the spark binary we found earlier (either in PATH or full path)
+    if [ -z "$SPARK_BIN" ]; then
+        echo -e "${YELLOW}⚠ spark command not found, skipping auto-start${NC}"
+        echo "  Run: source ~/.zshrc"
+        echo "  Then: spark start $VAULT_PATH &"
         echo ""
-        echo -e "${GREEN}🚀 Spark is running!${NC}"
-        echo ""
-        echo -e "${YELLOW}Next steps:${NC}"
-        echo "  1. Restart Obsidian to load the plugin"
-        echo "  2. Configure API key in plugin settings (Settings → Spark)"
-        echo "  3. Try typing '@' or '/' in any note"
-        echo "  4. Press Cmd+K to open chat"
-        echo ""
-        echo -e "${YELLOW}Check daemon status:${NC}"
-        echo "     spark status $VAULT_PATH"
-        echo ""
-        echo -e "${YELLOW}View daemon logs:${NC}"
-        echo "     spark start $VAULT_PATH --debug"
     else
-        echo -e "${YELLOW}⚠ Daemon failed to start${NC}"
-        echo "  Start manually with: spark start $VAULT_PATH"
-        echo ""
+        echo -e "${YELLOW}→ Starting daemon in background...${NC}"
+        
+        # Try to start daemon and capture any errors
+        DAEMON_LOG=$(mktemp)
+        "$SPARK_BIN" start "$VAULT_PATH" > "$DAEMON_LOG" 2>&1 &
+        DAEMON_PID=$!
+        sleep 2
+        
+        if ps -p $DAEMON_PID > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Daemon started (PID: $DAEMON_PID)${NC}"
+            rm -f "$DAEMON_LOG"
+            echo ""
+            echo -e "${GREEN}🚀 Spark is running!${NC}"
+            echo ""
+            echo -e "${YELLOW}Next steps:${NC}"
+            echo "  1. Restart Obsidian to load the plugin"
+            echo "  2. Configure API key in plugin settings (Settings → Spark)"
+            echo "  3. Try typing '@' or '/' in any note"
+            echo "  4. Press Cmd+K to open chat"
+            echo ""
+            echo -e "${YELLOW}Check daemon status:${NC}"
+            echo "     spark status $VAULT_PATH"
+            echo ""
+            echo -e "${YELLOW}View daemon logs:${NC}"
+            echo "     spark start $VAULT_PATH --debug"
+        else
+            echo -e "${YELLOW}⚠ Daemon failed to start${NC}"
+            echo ""
+            if [ -s "$DAEMON_LOG" ]; then
+                echo -e "${YELLOW}Error output:${NC}"
+                cat "$DAEMON_LOG"
+                echo ""
+            fi
+            rm -f "$DAEMON_LOG"
+            echo "  After running: source ~/.zshrc"
+            echo "  Start manually with: spark start $VAULT_PATH"
+            echo ""
+        fi
     fi
 else
     if [ "$DEV_MODE" = "1" ]; then
@@ -604,7 +645,8 @@ else
     echo -e "${YELLOW}Next steps:${NC}"
     echo "  1. Restart Obsidian to load the plugin"
     echo "  2. Configure API key in plugin settings (Settings → Spark)"
-    echo "  3. Start the daemon:"
+    echo "  3. In your current terminal, run: source ~/.zshrc"
+    echo "  4. Start the daemon:"
     echo "     spark start $VAULT_PATH              # Foreground"
     echo "     spark start $VAULT_PATH &            # Background"
     echo ""

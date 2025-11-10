@@ -95,6 +95,8 @@ if ! command -v node &> /dev/null; then
     # Install nvm
     if [ ! -d "$HOME/.nvm" ]; then
         echo -e "${YELLOW}  Installing nvm...${NC}"
+        # Set METHOD=script to force nvm to download as tarball (avoids git/Xcode popup on macOS)
+        export METHOD=script
         $DOWNLOAD_CMD https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
         echo -e "${GREEN}  ✓ nvm installed${NC}"
     fi

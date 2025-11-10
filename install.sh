@@ -253,18 +253,18 @@ echo -e "${YELLOW}→ Making CLI executable...${NC}"
 chmod +x dist/cli.js
 echo -e "${GREEN}✓ CLI permissions set${NC}"
 
-echo -e "${YELLOW}→ Linking daemon globally...${NC}"
-npm link
+echo -e "${YELLOW}→ Installing daemon globally...${NC}"
+npm install -g .
 
 # Add npm global bin to PATH so spark command is immediately available
 # Use the same directory where node is located (most reliable method)
 NODE_BIN_DIR=$(dirname "$(which node 2>/dev/null)")
 if [ -n "$NODE_BIN_DIR" ]; then
     export PATH="$NODE_BIN_DIR:$PATH"
-    echo -e "${GREEN}✓ Daemon linked globally${NC}"
+    echo -e "${GREEN}✓ Daemon installed globally${NC}"
     echo -e "${BLUE}  Node bin dir: $NODE_BIN_DIR${NC}"
     
-    # Verify spark was linked
+    # Verify spark was installed
     if [ -f "$NODE_BIN_DIR/spark" ]; then
         echo -e "${GREEN}✓ spark binary found at $NODE_BIN_DIR/spark${NC}"
     else

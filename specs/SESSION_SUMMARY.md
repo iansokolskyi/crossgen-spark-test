@@ -288,8 +288,7 @@ spark/
    cat .spark/commands/summarize.md
    cat .spark/agents/betty.md
    
-   # Get Claude API key
-   export ANTHROPIC_API_KEY=your_key_here
+  # Add API key in plugin settings (Settings → Spark → Advanced)
    
    # Choose your component:
    

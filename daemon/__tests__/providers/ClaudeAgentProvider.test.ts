@@ -4,7 +4,7 @@
 
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { ClaudeAgentProvider } from '../../src/providers/ClaudeAgentProvider.js';
-import type { ProviderConfiguration } from '../../src/types/config.js';
+import type { ProviderConfig } from '../../src/types/provider.js';
 import { Logger } from '../../src/logger/Logger.js';
 import { ProviderType } from '../../src/types/provider.js';
 
@@ -14,10 +14,11 @@ jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
 }));
 
 describe('ClaudeAgentProvider', () => {
-    const mockConfig: ProviderConfiguration = {
+    const mockConfig: ProviderConfig = {
+        name: 'claude-agent',
         type: ProviderType.ANTHROPIC,
         model: 'claude-3-5-sonnet-20241022',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        apiKey: 'test-api-key',
         maxTokens: 4096,
         temperature: 0.7,
         options: {
@@ -48,21 +49,14 @@ describe('ClaudeAgentProvider', () => {
             expect(provider.type).toBe(ProviderType.ANTHROPIC);
         });
 
-        it('should throw error if apiKeyEnv not specified', () => {
-            const config = { ...mockConfig, apiKeyEnv: undefined };
+        it('should throw error if no API key provided', () => {
+            const config = { ...mockConfig, apiKey: undefined };
 
             expect(() => new ClaudeAgentProvider(config)).toThrow(
-                'API key environment variable not specified'
+                'API key not provided'
             );
         });
 
-        it('should throw error if API key not set in environment', () => {
-            delete process.env.ANTHROPIC_API_KEY;
-
-            expect(() => new ClaudeAgentProvider(mockConfig)).toThrow(
-                'ANTHROPIC_API_KEY environment variable not set'
-            );
-        });
 
         it('should use vaultPath from config.options', () => {
             const config = {
@@ -181,12 +175,11 @@ describe('ClaudeAgentProvider', () => {
         });
 
         it('should return false if API key is not set', async () => {
-            const provider = new ClaudeAgentProvider(mockConfig);
-            delete process.env.ANTHROPIC_API_KEY;
-
-            const healthy = await provider.isHealthy();
-
-            expect(healthy).toBe(false);
+            // Create provider without API key (will fail in constructor)
+            const configWithoutKey = { ...mockConfig, apiKey: undefined };
+            
+            // Should throw during construction, so we can't test isHealthy
+            expect(() => new ClaudeAgentProvider(configWithoutKey)).toThrow('API key not provided');
         });
     });
 });

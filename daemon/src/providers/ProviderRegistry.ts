@@ -127,6 +127,13 @@ export class ProviderRegistry {
       return provider;
     } catch (error) {
       this.logger.error('Failed to create provider', { provider: name, error });
+
+      // If it's already a SparkError, re-throw it to preserve the specific error message
+      if (error instanceof SparkError) {
+        throw error;
+      }
+
+      // Otherwise wrap it
       throw new SparkError(`Failed to create provider '${name}'`, 'PROVIDER_INIT_FAILED', {
         originalError: error,
       });

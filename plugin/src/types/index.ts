@@ -7,6 +7,7 @@ export interface SparkSettings {
 	enablePalette: boolean;
 	chatHotkey: string;
 	vaultPath: string;
+	apiKeys?: Record<string, string>; // Provider name -> API key
 }
 
 export interface ISparkPlugin extends Plugin {

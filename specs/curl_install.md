@@ -12,7 +12,7 @@
 
 1. ✅ **gh CLI**: Optional (skip with warning if install fails)
 2. ✅ **Sudo failures**: Skip with warning, continue installation
-3. ✅ **Daemon auto-start**: Auto-start if ANTHROPIC_API_KEY present (optional for now)
+3. ✅ **Daemon auto-start**: Auto-start and configure daemon
 4. ✅ **Script hosting**: GitHub raw URL initially
 
 ---
@@ -55,7 +55,7 @@
 - ✅ Added curl-mode detection with automatic repo download
 - ✅ Added Node.js/nvm installation (skippable with SKIP_NODE=1)
 - ✅ Added GitHub CLI installation (optional, skippable with SKIP_GH=1)
-- ✅ Added daemon auto-start when ANTHROPIC_API_KEY is present
+- ✅ Added daemon auto-start and configuration
 - ✅ Added environment flags for customization
 
 **Testing Phase**
@@ -84,7 +84,7 @@ Successfully enhanced `install.sh` to support one-command curl installation on f
 - ✅ DEV_MODE flag for development features
 - ✅ Hot Reload only installed in dev mode
 - ✅ GitHub CLI only installed in dev mode
-- ✅ Auto-starts daemon if API key present (optional)
+- ✅ Auto-starts daemon with configuration
 - ✅ Graceful error handling
 - ✅ Environment flags (DEV_MODE, SKIP_NODE, SKIP_GH, AUTO_START)
 - ✅ Supports both curl and wget
@@ -227,7 +227,7 @@ REPO_URL=https://github.com/YOUR_ORG/spark-fork \
 
 ## Notes
 
-- API key handling will be added to plugin settings later (not blocking for installation)
+- API keys are managed in plugin settings (Settings → Spark → Advanced)
 - Making gh CLI optional reduces friction on fresh machines
 - nvm ensures consistent Node.js installation across platforms
 - Linux testing requires actual VM/container environment (not available in current session)

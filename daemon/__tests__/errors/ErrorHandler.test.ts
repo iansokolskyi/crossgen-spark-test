@@ -110,9 +110,7 @@ describe('ErrorHandler', () => {
     describe('error code suggestions', () => {
         it('should provide suggestions for API_KEY_NOT_SET', async () => {
             const handler = new ErrorHandler({ exitOnError: false });
-            const error = new SparkError('API key not set', 'API_KEY_NOT_SET', {
-                apiKeyEnv: 'MY_API_KEY',
-            });
+            const error = new SparkError('API key not set', 'API_KEY_NOT_SET');
 
             // Capture console.error output
             const consoleErrors: string[] = [];
@@ -126,8 +124,7 @@ describe('ErrorHandler', () => {
             console.error = originalError;
 
             const output = consoleErrors.join('\n');
-            expect(output).toContain('MY_API_KEY');
-            expect(output).toContain('export MY_API_KEY=');
+            expect(output).toContain('API key');
         });
 
         it('should provide suggestions for CONFIG_ERROR', async () => {
@@ -170,9 +167,7 @@ describe('ErrorHandler', () => {
 
         it('should provide suggestions for AI_CLIENT_ERROR', async () => {
             const handler = new ErrorHandler({ exitOnError: false });
-            const error = new SparkError('Invalid key', 'AI_CLIENT_ERROR', {
-                apiKeyEnv: 'CUSTOM_KEY',
-            });
+            const error = new SparkError('Invalid key', 'AI_CLIENT_ERROR');
 
             const consoleErrors: string[] = [];
             const originalError = console.error;
@@ -185,8 +180,7 @@ describe('ErrorHandler', () => {
             console.error = originalError;
 
             const output = consoleErrors.join('\n');
-            expect(output).toContain('CUSTOM_KEY');
-            expect(output).toContain('API key is valid');
+            expect(output).toContain('API key');
         });
 
         it('should provide no suggestions for unknown error codes', async () => {

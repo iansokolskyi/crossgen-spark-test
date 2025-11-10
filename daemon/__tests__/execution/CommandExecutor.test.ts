@@ -90,7 +90,6 @@ describe('CommandExecutor', () => {
                     'claude-client': {
                         type: ProviderType.ANTHROPIC,
                         model: 'claude-3-5-sonnet-20241022',
-                        apiKeyEnv: 'ANTHROPIC_API_KEY',
                         maxTokens: 4096,
                         temperature: 0.7,
                     },

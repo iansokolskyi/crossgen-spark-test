@@ -155,7 +155,6 @@ describe('ConfigValidator', () => {
                             'claude-client': {
                                 type: ProviderType.ANTHROPIC as const,
                                 model: 'claude-3-opus-20240229',
-                                apiKeyEnv: 'ANTHROPIC_API_KEY',
                                 maxTokens: 8192,
                                 temperature: 0.7,
                             },
@@ -343,7 +342,6 @@ describe('ConfigValidator', () => {
                             'claude-client': {
                                 type: ProviderType.ANTHROPIC,
                                 model: 'claude-3-opus-20240229',
-                                apiKeyEnv: 'MY_CLAUDE_KEY',
                                 maxTokens: 8192,
                                 temperature: 0.8,
                             },
@@ -404,24 +402,6 @@ describe('ConfigValidator', () => {
                 expect(() => validator.validate(config as unknown as SparkConfig)).toThrow('model is required');
             });
 
-            it('should throw if apiKeyEnv is not a string', () => {
-                const config = {
-                    ...DEFAULT_SPARK_CONFIG,
-                    ai: {
-                        defaultProvider: 'test-provider',
-                        providers: {
-                            'test-provider': {
-                                type: ProviderType.ANTHROPIC,
-                                model: 'test-model',
-                                apiKeyEnv: 123,
-                            },
-                        },
-                    },
-                };
-
-                expect(() => validator.validate(config as unknown as SparkConfig)).toThrow(SparkError);
-                expect(() => validator.validate(config as unknown as SparkConfig)).toThrow('apiKeyEnv must be a string');
-            });
 
             it('should throw if maxTokens is not a number', () => {
                 const config = {
@@ -489,7 +469,6 @@ describe('ConfigValidator', () => {
                             'test-provider': {
                                 type: ProviderType.ANTHROPIC,
                                 model: 'test-model',
-                                apiKeyEnv: 'TEST_KEY',
                                 maxTokens: 8192,
                                 temperature: 0.9,
                                 fallbackProvider: 'backup',

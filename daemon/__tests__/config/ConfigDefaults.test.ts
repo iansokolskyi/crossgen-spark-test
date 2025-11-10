@@ -12,7 +12,6 @@ describe('ConfigDefaults', () => {
         it('should have valid AI configuration', () => {
             expect(DEFAULT_SPARK_CONFIG.ai.defaultProvider).toBe('claude-agent');
             expect(DEFAULT_SPARK_CONFIG.ai.providers['claude-agent']!.model).toBe('claude-sonnet-4-5-20250929');
-            expect(DEFAULT_SPARK_CONFIG.ai.providers['claude-agent']!.apiKeyEnv).toBe('ANTHROPIC_API_KEY');
             expect(DEFAULT_SPARK_CONFIG.ai.providers['claude-client']!.model).toBe('claude-sonnet-4-5-20250929');
         });
 
@@ -131,7 +130,6 @@ describe('ConfigDefaults', () => {
                     providers: {
                         'claude-client': {
                             model: 'claude-3-opus-20240229',
-                            apiKeyEnv: 'CUSTOM_API_KEY',
                             maxTokens: 8192,
                             temperature: 0.5,
                         },

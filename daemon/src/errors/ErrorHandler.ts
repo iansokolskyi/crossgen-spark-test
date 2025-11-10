@@ -83,18 +83,14 @@ export class ErrorHandler {
    * Get user-friendly suggestions based on error code
    */
   // eslint-disable-next-line complexity, max-lines-per-function
-  public static getSuggestions(errorCode: string, error?: unknown): string[] {
+  public static getSuggestions(errorCode: string, _error?: unknown): string[] {
     switch (errorCode) {
       case 'API_KEY_NOT_SET': {
-        const envVar =
-          error instanceof SparkError && error.context?.apiKeyEnv
-            ? error.context.apiKeyEnv
-            : 'ANTHROPIC_API_KEY';
         return [
-          `Set your API key: export ${envVar}=your-key-here`,
-          'Add to ~/.bashrc or ~/.zshrc to persist across sessions',
+          `Open Spark plugin settings and add your API key`,
+          'Go to: Settings → Community Plugins → Spark → Advanced tab',
           'Get your API key from your AI provider dashboard',
-          `Verify it's set: echo $${envVar}`,
+          'Changes are applied automatically',
         ];
       }
 
@@ -130,15 +126,11 @@ export class ErrorHandler {
         ];
 
       case 'AI_CLIENT_ERROR': {
-        const envVar =
-          error instanceof SparkError && error.context?.apiKeyEnv
-            ? error.context.apiKeyEnv
-            : 'ANTHROPIC_API_KEY';
         return [
           'Check your API key is valid and not expired',
-          `Verify it's set: echo $${envVar}`,
+          'Update your API key in Spark plugin settings if needed',
           'Get a new key from your AI provider dashboard',
-          'Ensure the API key format is correct',
+          'Changes are applied automatically',
         ];
       }
 
@@ -201,10 +193,10 @@ export class ErrorHandler {
 
       case 'PROVIDER_INIT_FAILED':
         return [
-          'Check your .spark/config.yaml for provider configuration',
-          'Verify the API key environment variable is set',
           'Check the error details above for specific issues',
-          'Try restarting the daemon: spark stop <vault> && spark start <vault>',
+          'Add your API key in Spark plugin settings if missing',
+          'Go to: Settings → Community Plugins → Spark → Advanced tab',
+          'Changes are applied automatically',
         ];
 
       case 'PROVIDER_NOT_CONFIGURED':

@@ -59,7 +59,7 @@ That's it! No Node.js, npm, git, or other tools needed.
 - 🔧 Hot Reload plugin (auto-reload on changes)
 - 🔧 GitHub CLI (for contributing)
 
-> **Note:** Claude API key can be configured later in Obsidian plugin settings
+> **Note:** API keys are managed securely in Obsidian plugin settings (`~/.spark/secrets.yaml`, encrypted)
 
 ### Installation
 
@@ -78,8 +78,8 @@ curl -fsSL https://raw.githubusercontent.com/automazeio/crossgen-spark/main/inst
 **What it does:**
 - ✅ Installs Node.js via nvm (if needed)
 - ✅ Downloads and builds Spark daemon + plugin
-- ✅ Auto-starts daemon (if ANTHROPIC_API_KEY is set)
-- ✅ Ready for production use
+- ✅ Auto-starts daemon (configures vault)
+- ✅ Ready for production use (add API key in plugin settings)
 
 **For developers:**
 ```bash
@@ -111,11 +111,9 @@ cd crossgen-spark
 # 2. Run installer (sets up example-vault with hot reload)
 ./install.sh
 
-# 3. Set your API key
-export ANTHROPIC_API_KEY=your_key_here
-
-# 4. Open example-vault in Obsidian
+# 3. Open example-vault in Obsidian
 # - Plugins are auto-enabled (Spark + Hot Reload)
+# - Add your API key in plugin settings (Settings → Spark → Advanced)
 # - Ready for development!
 
 # 5. Start daemon
@@ -147,11 +145,11 @@ npm run build
 mkdir -p ~/Documents/MyVault/.obsidian/plugins/spark
 cp -r dist/* ~/Documents/MyVault/.obsidian/plugins/spark/
 
-# 5. Set API key
-export ANTHROPIC_API_KEY=your_key_here
-
-# 6. Enable plugin in Obsidian
+# 5. Enable plugin in Obsidian
 # Settings → Community plugins → Enable "Spark"
+
+# 6. Add API key in plugin settings
+# Settings → Spark → Advanced → Add your API key for each provider
 
 # 7. Start daemon
 spark start ~/Documents/MyVault
@@ -470,15 +468,14 @@ ai:
     claude-client:
       type: anthropic
       model: claude-3-5-sonnet-20241022
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
     claude-agent:
       type: anthropic
       model: claude-sonnet-4-5-20250929
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
+      # API keys are managed in plugin settings (~/.spark/secrets.yaml)
 
 logging:
   level: info
@@ -652,8 +649,8 @@ spark start ~/vault --debug           # Restart with debug logging
 ### Claude API errors
 
 ```bash
-echo $ANTHROPIC_API_KEY               # Verify API key
 spark config ~/vault                  # Check configuration
+spark inspect ~/vault                 # Inspect daemon state (includes API key status)
 ```
 
 #### Plugin Debugging
@@ -744,16 +741,17 @@ spark start ~/Documents/Vault
 
 ### Claude API errors
 
-```bash
-# Verify API key
-echo $ANTHROPIC_API_KEY
+API keys are stored securely in `~/.spark/secrets.yaml` (encrypted). To check:
 
-# Test API connection
-curl https://api.anthropic.com/v1/messages \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "content-type: application/json" \
-  -d '{"model":"claude-3-5-sonnet-20241022","max_tokens":10,"messages":[{"role":"user","content":"Hi"}]}'
+```bash
+spark inspect ~/vault                 # Shows API key status
+cat ~/.spark/secrets.yaml             # View encrypted secrets (Base64 encoded)
 ```
+
+To troubleshoot:
+1. Check API key is set in plugin settings (Settings → Spark → Advanced)
+2. Verify provider configuration in `.spark/config.yaml`
+3. Check daemon logs in `.spark/logs/`
 
 ---
 

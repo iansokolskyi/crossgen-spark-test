@@ -271,10 +271,10 @@ Initialize in `start()` method (after line 64 where fileParser is initialized):
 // After: this.fileParser = new FileParser();
 
 // Initialize AI components
-const apiKey = process.env.ANTHROPIC_API_KEY;
+const apiKey = config.apiKey; // Loaded from ~/.spark/secrets.yaml
 if (!apiKey) {
-  throw new SparkError(
-    'ANTHROPIC_API_KEY environment variable not set',
+    throw new SparkError(
+        'API key not provided. Add your API key in plugin settings.',
     'CONFIG_ERROR'
   );
 }
@@ -367,7 +367,7 @@ private async executeCommand(
 
 ### Setup
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+# Add API key in plugin settings (Settings → Spark → Advanced)
 cd daemon
 npm run dev:debug
 ```

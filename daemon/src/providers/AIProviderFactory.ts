@@ -9,17 +9,25 @@ import type { AIConfig, ProviderConfiguration } from '../types/config.js';
 import { ProviderRegistry } from './ProviderRegistry.js';
 import { SparkError } from '../types/index.js';
 import { Logger } from '../logger/Logger.js';
+import { SecretsLoader } from '../config/SecretsLoader.js';
 
 export class AIProviderFactory {
   private registry: ProviderRegistry;
   private logger: Logger;
   private providers: Map<string, IAIProvider> = new Map();
   private vaultPath?: string;
+  private secretsLoader?: SecretsLoader;
 
   constructor(vaultPath?: string) {
     this.registry = ProviderRegistry.getInstance();
     this.logger = Logger.getInstance();
     this.vaultPath = vaultPath;
+
+    // Initialize secrets loader if vault path is available
+    if (vaultPath) {
+      this.secretsLoader = new SecretsLoader(vaultPath);
+      this.secretsLoader.load();
+    }
   }
 
   /**
@@ -184,13 +192,20 @@ export class AIProviderFactory {
 
   /**
    * Convert ProviderConfiguration to ProviderConfig
+   * Injects API key from secrets.yaml if available
    */
   private convertConfiguration(name: string, config: ProviderConfiguration): ProviderConfig {
+    // Get API key from secrets loader only
+    let apiKey: string | undefined;
+    if (this.secretsLoader) {
+      apiKey = this.secretsLoader.getApiKey(name);
+    }
+
     return {
       name,
       type: config.type,
       model: config.model,
-      apiKeyEnv: config.apiKeyEnv,
+      apiKey,
       maxTokens: config.maxTokens,
       temperature: config.temperature,
       systemPrompt: config.systemPrompt,
@@ -200,5 +215,15 @@ export class AIProviderFactory {
         vaultPath: this.vaultPath, // Pass vaultPath to providers that need it
       },
     };
+  }
+
+  /**
+   * Reload secrets from file (useful for hot reload)
+   */
+  public reloadSecrets(): void {
+    if (this.secretsLoader) {
+      this.secretsLoader.reload();
+      this.logger.info('Secrets reloaded');
+    }
   }
 }

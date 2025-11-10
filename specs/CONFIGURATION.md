@@ -49,6 +49,21 @@ The daemon automatically watches `.spark/config.yaml` for changes and reloads co
 - **Version Control:** Yes (committed to repo)
 - **Controls:** AI behavior, triggers, automation
 
+### 3. API Key Management (Secure Storage)
+- **Location:** `~/.spark/secrets.yaml` (user-level, outside vault)
+- **Managed by:** Plugin settings UI
+- **Encryption:** AES-256-GCM with machine-derived key
+- **Scope:** User-specific (per machine)
+- **Version Control:** No (never committed)
+- **Controls:** API keys for AI providers
+
+API keys are:
+- Stored encrypted at rest using machine-specific encryption
+- Managed through Obsidian plugin settings (Settings → Spark → Advanced)
+- Never stored in vault (safe to share vault with team)
+- Hot-reloaded automatically when changed
+- File permissions set to 0600 (user-only access)
+
 ---
 
 ## Plugin Settings (UI Preferences)
@@ -155,13 +170,11 @@ ai:
     claude-agent:
       type: anthropic
       model: claude-sonnet-4-5-20250929
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
     claude-client:
       type: anthropic
       model: claude-3-5-sonnet-20241022
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
 
@@ -515,10 +528,10 @@ interface ConfigValidation {
     providers: {
       [name: string]: {
         type: string;  // 'anthropic' | 'openai' | etc.
-        apiKeyEnv: string;  // Must be valid env var
         model: string;
         maxTokens?: number;
         temperature?: number;
+        // API keys are managed in ~/.spark/secrets.yaml (not in config.yaml)
       };
     };
   };
@@ -538,9 +551,8 @@ interface ConfigValidation {
 ```
 ❌ Configuration Error in .spark/config.yaml
 
-Line 23: ai.providers.claude-agent.apiKeyEnv
-  → Environment variable ANTHROPIC_API_KEY not found
-  → Set it in your environment: export ANTHROPIC_API_KEY=sk-...
+Line 23: ai.providers.claude-agent.model
+  → Model name is required for provider configuration
 
 Line 45: mcp.servers.quickbooks.command
   → Command 'mcp-quickbooks' not found in PATH
@@ -574,13 +586,11 @@ ai:
     claude-agent:
       type: anthropic
       model: claude-sonnet-4-5-20250929
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
     claude-client:
       type: anthropic
       model: claude-3-5-sonnet-20241022
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
 
@@ -668,7 +678,7 @@ ai:
 ai:
   providers:
     claude-agent:
-      apiKeyEnv: ANTHROPIC_API_KEY  # Reference env var
+  # Reference env var
 ```
 
 ### 2. Disable Unused Features
@@ -796,7 +806,7 @@ User B:
 ```
 
 **4. Security**
-- Daemon config references environment variables: `apiKeyEnv: ANTHROPIC_API_KEY`
+- API keys are stored securely in `~/.spark/secrets.yaml` (encrypted, user-level)
 - Actual secrets stored outside repo
 - Plugin settings don't contain secrets
 

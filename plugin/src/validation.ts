@@ -29,7 +29,6 @@ export const SparkConfigSchema = z.object({
         providers: z.record(z.string(), z.object({
             type: z.nativeEnum(ProviderType),
             model: z.enum([...ALL_MODELS] as [string, ...string[]]),
-            apiKeyEnv: z.string().min(1, 'API key environment variable is required').optional(),
             maxTokens: z.number().positive('Max tokens must be positive'),
             temperature: z.number().min(0).max(1)
         }))

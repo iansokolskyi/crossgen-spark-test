@@ -179,7 +179,6 @@ ai:
   claude:
     model: claude-3-5-sonnet-20241022
     max_tokens: 4096
-    api_key_env: ANTHROPIC_API_KEY
 
 logging:
   level: ${defaultConfig.logLevel}

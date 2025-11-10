@@ -195,12 +195,11 @@ export class ErrorWriter {
 
     switch (error.code) {
       case 'API_KEY_NOT_SET': {
-        const envVar = error.context?.apiKeyEnv || 'ANTHROPIC_API_KEY';
         return [
-          `1. Set your API key: \`export ${envVar}=your-key-here\``,
-          '2. Add to ~/.bashrc or ~/.zshrc to persist across sessions',
-          '3. Get your API key from your AI provider dashboard',
-          `4. Verify it's set: \`echo $${envVar}\``,
+          `1. Open Spark plugin settings`,
+          '2. Go to: Settings → Community Plugins → Spark → Advanced tab',
+          '3. Add your API key in the provider settings',
+          `4. Get your API key from your AI provider dashboard`,
         ].join('\n');
       }
 
@@ -222,10 +221,9 @@ export class ErrorWriter {
         ].join('\n');
 
       case 'AI_CLIENT_ERROR': {
-        const envVar = error.context?.apiKeyEnv || 'ANTHROPIC_API_KEY';
         return [
           '1. Check your API key is valid and not expired',
-          `2. Verify it's set: \`echo $${envVar}\``,
+          `2. Update your API key in Spark plugin settings if needed`,
           '3. Get a new key from your AI provider dashboard',
           '4. Ensure the API key format is correct',
         ].join('\n');

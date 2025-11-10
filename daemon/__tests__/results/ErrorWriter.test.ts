@@ -102,9 +102,8 @@ describe('ErrorWriter', () => {
 
         it('should include suggestions for known error codes', async () => {
             const sparkError = new SparkError(
-                'ANTHROPIC_API_KEY environment variable not set',
-                'API_KEY_NOT_SET',
-                { apiKeyEnv: 'ANTHROPIC_API_KEY' }
+                'API key not provided',
+                'API_KEY_NOT_SET'
             );
 
             const errorPath = await errorWriter.writeError({
@@ -115,14 +114,12 @@ describe('ErrorWriter', () => {
             const content = readFileSync(errorPath, 'utf-8');
             expect(content).toContain('## Suggestions');
             expect(content).toContain('API key');
-            expect(content).toContain('ANTHROPIC_API_KEY');
         });
 
         it('should use custom env var name in API key error suggestions', async () => {
             const sparkError = new SparkError(
-                'MY_CUSTOM_API_KEY environment variable not set',
-                'API_KEY_NOT_SET',
-                { apiKeyEnv: 'MY_CUSTOM_API_KEY' }
+                'API key not provided',
+                'API_KEY_NOT_SET'
             );
 
             const errorPath = await errorWriter.writeError({
@@ -132,9 +129,7 @@ describe('ErrorWriter', () => {
 
             const content = readFileSync(errorPath, 'utf-8');
             expect(content).toContain('## Suggestions');
-            expect(content).toContain('MY_CUSTOM_API_KEY');
-            expect(content).toContain('export MY_CUSTOM_API_KEY=');
-            expect(content).toContain('echo $MY_CUSTOM_API_KEY');
+            expect(content).toContain('API key');
         });
 
         it('should handle AI client errors with suggestions', async () => {

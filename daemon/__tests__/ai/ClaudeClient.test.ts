@@ -24,7 +24,6 @@ describe('ClaudeClient', () => {
         // Create client with fake API key (won't be used due to mock)
         client = new ClaudeClient('fake-api-key-for-testing', {
             model: 'claude-3-5-sonnet-20241022',
-            api_key_env: 'ANTHROPIC_API_KEY',
             max_tokens: 4096,
             temperature: 0.7,
         });

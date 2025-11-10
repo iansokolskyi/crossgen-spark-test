@@ -98,7 +98,6 @@ export class ClaudeClient implements IAIClient {
 
     throw new SparkError(`Claude API error: ${errorMessage}`, errorCode, {
       originalError: error,
-      apiKeyEnv: this.config.api_key_env,
     });
   }
 

@@ -3,11 +3,13 @@ import { SparkSettings, ISparkPlugin } from './types';
 import * as yaml from 'js-yaml';
 import { AgentConfigSchema, SparkConfigSchema, type SparkConfig } from './validation';
 import { ALL_MODELS, getModelLabel, ProviderType, getProviderLabel, getModelsByProvider } from './models';
+import { encryptSecrets } from './crypto/index';
 
 export const DEFAULT_SETTINGS: SparkSettings = {
     enablePalette: true,
     chatHotkey: 'Mod+K',
-    vaultPath: ''
+    vaultPath: '',
+    apiKeys: {}
 };
 
 interface AgentConfig {
@@ -148,16 +150,49 @@ export class SparkSettingTab extends PluginSettingTab {
     }
 
     private populateAdvancedTab(containerEl: HTMLElement) {
-        // Daemon Configuration Section
-        containerEl.createEl('h3', { text: 'Daemon Configuration' });
-        const configDesc = containerEl.createEl('p', {
-            text: 'Edit Spark daemon configuration. Changes are saved directly to config.yaml and picked up automatically.',
-            cls: 'setting-item-description'
-        });
-        configDesc.style.marginBottom = '1em';
-
         this.configContainer = containerEl.createDiv();
         this.loadConfig();
+    }
+
+
+    private async writeSecretsFile() {
+        const homeDir = this.getHomeDirectory();
+        const secretsDir = `${homeDir}/.spark`;
+        const secretsPath = `${secretsDir}/secrets.yaml`;
+
+        try {
+            // Ensure ~/.spark directory exists
+            const fs = require('fs');
+            if (!fs.existsSync(secretsDir)) {
+                fs.mkdirSync(secretsDir, { recursive: true });
+            }
+
+            const secrets = {
+                api_keys: this.plugin.settings.apiKeys || {}
+            };
+
+            // Convert to YAML
+            const yamlStr = yaml.dump(secrets, { lineWidth: -1 });
+
+            // Encrypt the YAML content
+            const encryptedContent = encryptSecrets(yamlStr);
+
+            // Write encrypted content to file
+            fs.writeFileSync(secretsPath, encryptedContent, 'utf-8');
+
+            // Set strict permissions (user-only read/write)
+            fs.chmodSync(secretsPath, 0o600);
+
+            new Notice('API keys saved');
+        } catch (error) {
+            console.error('Error writing secrets file:', error);
+            new Notice('Failed to save API keys');
+        }
+    }
+
+    private getHomeDirectory(): string {
+        // Get user's home directory cross-platform
+        return process.env.HOME || process.env.USERPROFILE || '~';
     }
 
     private async loadAgents() {
@@ -517,6 +552,11 @@ export class SparkSettingTab extends PluginSettingTab {
         if (!this.configContainer) return;
 
         this.configContainer.empty();
+
+        // Initialize apiKeys if not present
+        if (!this.plugin.settings.apiKeys) {
+            this.plugin.settings.apiKeys = {};
+        }
         const configPath = '.spark/config.yaml';
 
         try {
@@ -573,6 +613,21 @@ export class SparkSettingTab extends PluginSettingTab {
                 text: 'Configure AI provider settings',
                 cls: 'setting-item-description spark-providers-description'
             });
+
+            // Add informational banner about API keys storage
+            const infoEl = this.configContainer.createDiv({ cls: 'setting-item-description' });
+            infoEl.style.marginBottom = '1em';
+            infoEl.style.padding = '0.5em';
+            infoEl.style.backgroundColor = 'var(--background-secondary)';
+            infoEl.style.borderRadius = '4px';
+
+            infoEl.createSpan({ text: '🔒 ' });
+            infoEl.createEl('strong', { text: 'API keys storage: ' });
+            infoEl.createEl('code', { text: '~/.spark/secrets.yaml' });
+            infoEl.appendText(' (outside your vault, safe to sync)');
+            infoEl.createEl('br');
+            const priorityText = infoEl.createEl('small');
+            priorityText.style.opacity = '0.8';
 
             const providersContainer = this.configContainer.createDiv({ cls: 'spark-providers-accordion' });
 
@@ -667,12 +722,39 @@ export class SparkSettingTab extends PluginSettingTab {
                 // Create initial model dropdown
                 updateModelDropdown();
 
-                new Setting(providerContent)
-                    .setName('API Key Environment Variable')
-                    .setDesc('Environment variable name for API key (optional for some providers like claude-code)')
-                    .addText(text => text
-                        .setValue(providerConfig.apiKeyEnv ?? '')
-                        .onChange(value => providerConfig.apiKeyEnv = value || undefined));
+                // API Key input
+                const isOptional = providerName === 'claude-code';
+                let apiKeyValue = this.plugin.settings.apiKeys?.[providerName] || '';
+
+                const apiKeySetting = new Setting(providerContent)
+                    .setName('API Key')
+                    .setDesc(isOptional ? 'Optional for claude-code' : 'Required')
+                    .addText(text => {
+                        text.inputEl.type = 'password';
+                        text.setPlaceholder('Enter API key...');
+                        text.setValue(apiKeyValue);
+                        text.onChange((value) => {
+                            apiKeyValue = value;
+                        });
+                        return text;
+                    });
+
+                // Add Show/Hide button
+                apiKeySetting.addButton(btn => {
+                    btn.setButtonText('Show')
+                        .onClick(() => {
+                            const input = apiKeySetting.controlEl.querySelector('input[type="password"], input[type="text"]') as HTMLInputElement;
+                            if (input) {
+                                if (input.type === 'password') {
+                                    input.type = 'text';
+                                    btn.setButtonText('Hide');
+                                } else {
+                                    input.type = 'password';
+                                    btn.setButtonText('Show');
+                                }
+                            }
+                        });
+                });
 
                 new Setting(providerContent)
                     .setName('Max Tokens')
@@ -713,6 +795,14 @@ export class SparkSettingTab extends PluginSettingTab {
                         .setCta()
                         .onClick(async () => {
                             try {
+                                // Save API key to plugin settings and secrets file
+                                if (!this.plugin.settings.apiKeys) {
+                                    this.plugin.settings.apiKeys = {};
+                                }
+                                this.plugin.settings.apiKeys[providerName] = apiKeyValue;
+                                await this.plugin.saveSettings();
+                                await this.writeSecretsFile();
+
                                 // Validate with Zod
                                 const result = SparkConfigSchema.safeParse(config);
 

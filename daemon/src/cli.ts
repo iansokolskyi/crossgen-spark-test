@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 import { SparkDaemon } from './SparkDaemon.js';
 import { ConfigLoader } from './config/ConfigLoader.js';
+import { SecretsLoader } from './config/SecretsLoader.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, existsSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
@@ -448,14 +449,20 @@ program
       console.log('🤖 AI Configuration:');
       console.log(`  Default Provider: ${config.ai.defaultProvider}`);
       console.log(`  Available Providers:`);
+
+      // Load secrets to check API key status
+      const secretsLoader = new SecretsLoader(vaultPath);
+      secretsLoader.load();
+
       for (const [name, providerConfig] of Object.entries(config.ai.providers || {})) {
         const isDefault = name === config.ai.defaultProvider;
+        const hasApiKey = secretsLoader.hasApiKey(name);
         console.log(`    ${isDefault ? '→' : ' '} ${name}`);
         console.log(`      Type: ${providerConfig.type}`);
         console.log(`      Model: ${providerConfig.model}`);
-        console.log(`      API Key Env: ${providerConfig.apiKeyEnv}`);
-        const apiKey = providerConfig.apiKeyEnv ? process.env[providerConfig.apiKeyEnv] : undefined;
-        console.log(`      API Key: ${apiKey ? '✓ configured' : '✗ missing'}`);
+        console.log(
+          `      API Key: ${hasApiKey ? '✓ configured in ~/.spark/secrets.yaml' : '✗ missing'}`
+        );
         console.log(`      Max Tokens: ${providerConfig.maxTokens}`);
         console.log(`      Temperature: ${providerConfig.temperature}`);
       }

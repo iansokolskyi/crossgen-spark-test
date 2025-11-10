@@ -135,7 +135,6 @@ describe('CLI', () => {
                         model: 'claude-3-5-sonnet-20241022',
                         maxTokens: 4096,
                         temperature: 0.7,
-                        apiKeyEnv: 'ANTHROPIC_API_KEY',
                     },
                 },
             },
@@ -375,7 +374,7 @@ describe('CLI', () => {
                 },
                 ai: {
                     defaultProvider: 'claude-client',
-                    providers: { 'claude-client': { type: ProviderType.ANTHROPIC, model: '', maxTokens: 0, temperature: 0, apiKeyEnv: '' } },
+                    providers: { 'claude-client': { type: ProviderType.ANTHROPIC, model: '', maxTokens: 0, temperature: 0 } },
                 },
             };
 

@@ -26,24 +26,19 @@ export class ClaudeDirectProvider implements IAIProvider {
     this.logger = Logger.getInstance();
     this.fallbackProviderName = config.fallbackProvider || null;
 
-    // Get API key from environment
-    const apiKeyEnv = config.apiKeyEnv || 'ANTHROPIC_API_KEY';
-    const apiKey = process.env[apiKeyEnv];
+    // Get API key from config (populated from secrets)
+    const apiKey = config.apiKey;
 
     if (!apiKey) {
       throw new SparkError(
-        `API key not set in environment variable: ${apiKeyEnv}`,
-        'API_KEY_NOT_SET',
-        {
-          apiKeyEnv,
-        }
+        'API key not provided. Add your API key in the Spark plugin settings.',
+        'API_KEY_NOT_SET'
       );
     }
 
     // Create ClaudeClient with config
     this.client = new ClaudeClient(apiKey, {
       model: config.model,
-      api_key_env: apiKeyEnv,
       max_tokens: config.maxTokens || 4096,
       temperature: config.temperature ?? 0.7,
     });

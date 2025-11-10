@@ -22,41 +22,33 @@ export class ClaudeAgentProvider implements IAIProvider {
   private vaultPath: string;
   private errorHandler: ClaudeAgentErrorHandler;
 
-  constructor(config: ProviderConfiguration) {
-    if (!config.apiKeyEnv) {
-      throw new SparkError(
-        'API key environment variable not specified for ClaudeAgentProvider',
-        'PROVIDER_INIT_FAILED'
-      );
-    }
+  constructor(config: ProviderConfig) {
+    // Check for API key from secrets
+    const apiKey = config.apiKey;
 
-    const apiKey = process.env[config.apiKeyEnv];
     if (!apiKey) {
       throw new SparkError(
-        `${config.apiKeyEnv} environment variable not set for ClaudeAgentProvider`,
-        'API_KEY_NOT_SET',
-        { apiKeyEnv: config.apiKeyEnv }
+        'API key not provided. Add your API key in the Spark plugin settings.',
+        'API_KEY_NOT_SET'
       );
     }
 
-    this.name = 'claude-agent';
-    this.config = config;
+    this.name = config.name;
+    this.config = { ...config, apiKey };
     // Get vaultPath from config.options if available
     this.vaultPath = (config.options?.vaultPath as string) || process.cwd();
     this.logger = Logger.getInstance();
-    this.errorHandler = new ClaudeAgentErrorHandler();
+    this.errorHandler = new ClaudeAgentErrorHandler(this.name);
     this.logger.info(`ClaudeAgentProvider (${this.name}) initialized`, {
       vaultPath: this.vaultPath,
     });
   }
 
   async complete(options: ProviderCompletionOptions): Promise<AICompletionResult> {
-    const apiKey = process.env[this.config.apiKeyEnv!];
+    // Use the API key from config (already resolved in constructor)
+    const apiKey = this.config.apiKey;
     if (!apiKey) {
-      throw new SparkError(
-        `${this.config.apiKeyEnv} environment variable not set`,
-        'API_KEY_NOT_SET'
-      );
+      throw new SparkError('API key not available', 'API_KEY_NOT_SET');
     }
 
     this.logger.debug('Claude Agent SDK call', {
@@ -76,8 +68,12 @@ export class ClaudeAgentProvider implements IAIProvider {
     });
 
     try {
-      // Set API key in environment for SDK to use
+      // Clear any existing ANTHROPIC_API_KEY to ensure we use our explicit key
+      // This prevents accidentally using environment variables
       const originalApiKey = process.env.ANTHROPIC_API_KEY;
+      delete process.env.ANTHROPIC_API_KEY;
+
+      // Set our explicit API key from secrets.yaml
       process.env.ANTHROPIC_API_KEY = apiKey;
 
       try {
@@ -150,7 +146,7 @@ export class ClaudeAgentProvider implements IAIProvider {
         }
       }
     } catch (error) {
-      this.errorHandler.handleError(error, this.config.apiKeyEnv);
+      this.errorHandler.handleError(error);
     }
   }
 
@@ -226,7 +222,7 @@ export class ClaudeAgentProvider implements IAIProvider {
       this.logger.warn(
         'Claude Agent SDK returned empty result with zero tokens - possible SDK crash'
       );
-      throw new SparkError('Claude Code process exited with code 1', 'PROVIDER_CALL_FAILED', {
+      throw new SparkError(`${this.name} process exited with code 1`, 'PROVIDER_CALL_FAILED', {
         detail:
           'SDK returned empty result with zero token usage - the SDK process may have crashed',
       });
@@ -275,8 +271,8 @@ export class ClaudeAgentProvider implements IAIProvider {
   }
 
   async isHealthy(): Promise<boolean> {
-    // Check if API key is set
-    const apiKey = process.env[this.config.apiKeyEnv!];
+    // Check if API key is available
+    const apiKey = this.config.apiKey;
     if (!apiKey) {
       return false;
     }
@@ -350,7 +346,6 @@ export class ClaudeAgentProvider implements IAIProvider {
       name: this.name,
       type: this.type,
       model: this.config.model,
-      apiKeyEnv: this.config.apiKeyEnv,
       maxTokens: this.config.maxTokens,
       temperature: this.config.temperature,
       fallbackProvider: this.config.fallbackProvider,
@@ -364,15 +359,17 @@ export class ClaudeAgentProvider implements IAIProvider {
  */
 class ClaudeAgentErrorHandler {
   private logger: Logger;
+  private providerName: string;
 
-  constructor() {
+  constructor(providerName: string) {
     this.logger = Logger.getInstance();
+    this.providerName = providerName;
   }
 
   /**
    * Handle Claude Agent SDK errors and convert them to SparkErrors
    */
-  handleError(error: unknown, apiKeyEnv?: string): never {
+  handleError(error: unknown): never {
     // Log detailed error information for debugging
     const errorObj = error as Record<string, unknown>;
     this.logger.error('Claude Agent SDK error details', {
@@ -397,7 +394,7 @@ class ClaudeAgentErrorHandler {
     // Check for process exit errors
     const exitCode = this.extractExitCode(error);
     if (exitCode !== null) {
-      this.handleProcessExitError(error, exitCode, apiKeyEnv);
+      this.handleProcessExitError(error, exitCode);
     }
 
     // Check for JSON parse errors
@@ -435,19 +432,19 @@ class ClaudeAgentErrorHandler {
     return null;
   }
 
-  private handleProcessExitError(error: unknown, exitCode: number, apiKeyEnv?: string): never {
+  private handleProcessExitError(error: unknown, exitCode: number): never {
     // Exit code 1 usually means API error (auth, credits, etc)
     if (exitCode === 1) {
       throw new SparkError(
-        'Claude Code process failed. This usually indicates an API authentication or credit issue. Check your API key and account credits.',
+        `${this.providerName} process failed. This usually indicates an API authentication or credit issue. Check your API key and account credits.`,
         'AI_CLIENT_ERROR',
-        { originalError: error, exitCode, apiKeyEnv }
+        { originalError: error, exitCode }
       );
     }
 
     // Other exit codes
     throw new SparkError(
-      `Claude Code process exited with code ${exitCode}. Check the error logs for more details.`,
+      `${this.providerName} process exited with code ${exitCode}. Check the error logs for more details.`,
       'PROVIDER_CALL_FAILED',
       { originalError: error, exitCode }
     );

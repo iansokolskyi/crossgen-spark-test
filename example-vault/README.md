@@ -41,7 +41,7 @@ Spark provides two powerful interfaces for AI interaction in Obsidian:
 ### Prerequisites
 
 - **Node.js** 18+ 
-- **Claude API key** (from Anthropic)
+- **Claude API key** (add in Obsidian plugin settings)
 - **Obsidian** (optional - comes with example vault)
 
 ### Installation
@@ -56,8 +56,8 @@ cd crossgen-spark
 # 2. Run installer (sets up example-vault with hot reload)
 ./install.sh
 
-# 3. Set your API key
-export ANTHROPIC_API_KEY=your_key_here
+# 3. Add API key in plugin settings
+# Settings → Spark → Advanced → Add your API key
 
 # 4. Open example-vault in Obsidian
 # - Plugins are auto-enabled (Spark + Hot Reload)
@@ -100,8 +100,8 @@ npm run build
 mkdir -p ~/Documents/MyVault/.obsidian/plugins/spark
 cp -r dist/* ~/Documents/MyVault/.obsidian/plugins/spark/
 
-# 5. Set API key
-export ANTHROPIC_API_KEY=your_key_here
+# 5. Add API key in plugin settings
+# Settings → Spark → Advanced
 
 # 6. Enable plugin in Obsidian
 # Settings → Community plugins → Enable "Spark"
@@ -423,13 +423,11 @@ ai:
     claude-client:
       type: anthropic
       model: claude-3-5-sonnet-20241022
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
     claude-agent:
       type: anthropic
       model: claude-sonnet-4-5-20250929
-      apiKeyEnv: ANTHROPIC_API_KEY
       maxTokens: 4096
       temperature: 0.7
 
@@ -605,7 +603,7 @@ spark start ~/vault --debug           # Restart with debug logging
 ### Claude API errors
 
 ```bash
-echo $ANTHROPIC_API_KEY               # Verify API key
+spark inspect .                       # Check API key status
 spark config ~/vault                  # Check configuration
 ```
 
@@ -698,14 +696,11 @@ spark start ~/Documents/Vault
 ### Claude API errors
 
 ```bash
-# Verify API key
-echo $ANTHROPIC_API_KEY
+# Check API key status
+spark inspect .
 
-# Test API connection
-curl https://api.anthropic.com/v1/messages \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "content-type: application/json" \
-  -d '{"model":"claude-3-5-sonnet-20241022","max_tokens":10,"messages":[{"role":"user","content":"Hi"}]}'
+# View encrypted secrets file
+cat ~/.spark/secrets.yaml
 ```
 
 ---

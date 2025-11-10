@@ -98,7 +98,7 @@ export interface SparkConfig {
       [name: string]: {
         type: string;
         model: string;
-        apiKeyEnv: string;
+        // API keys managed in ~/.spark/secrets.yaml
         maxTokens: number;
         temperature: number;
       };

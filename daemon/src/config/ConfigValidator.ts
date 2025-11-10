@@ -97,7 +97,6 @@ export class ConfigValidator implements IConfigValidator {
     }
   }
 
-  // eslint-disable-next-line complexity
   private validateProviderConfig(name: string, config: unknown): void {
     if (!config || typeof config !== 'object') {
       throw new SparkError(`ai.providers.${name} must be an object`, 'INVALID_PROVIDER_CONFIG');
@@ -126,13 +125,7 @@ export class ConfigValidator implements IConfigValidator {
       );
     }
 
-    // Validate optional fields
-    if (c.apiKeyEnv !== undefined && typeof c.apiKeyEnv !== 'string') {
-      throw new SparkError(
-        `ai.providers.${name}.apiKeyEnv must be a string`,
-        'INVALID_PROVIDER_CONFIG'
-      );
-    }
+    // No additional optional field validation needed
 
     if (c.maxTokens !== undefined && typeof c.maxTokens !== 'number') {
       throw new SparkError(

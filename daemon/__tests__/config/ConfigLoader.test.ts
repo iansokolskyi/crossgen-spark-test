@@ -84,8 +84,6 @@ describe('ConfigLoader', () => {
 
             expect(config.ai.providers['claude-client']!.model).toBe('claude-3-opus-20240229');
             expect(config.ai.providers['claude-client']!.maxTokens).toBe(8192);
-            // Default preserved
-            expect(config.ai.providers['claude-client']!.apiKeyEnv).toBe('ANTHROPIC_API_KEY');
         });
 
         it('should handle empty config file', async () => {
@@ -141,20 +139,6 @@ describe('ConfigLoader', () => {
             expect(config.features.chat_assistant).toBe(true);
         });
 
-        it('should handle string overrides', async () => {
-            const userConfig = {
-                ai: {
-                    claude: {
-                        api_key_env: 'CUSTOM_KEY',
-                    },
-                },
-            };
-
-            await vault.writeConfig(userConfig);
-            const config = await loader.load(vault.root);
-
-            expect(config.ai.claude!.api_key_env).toBe('CUSTOM_KEY');
-        });
 
         it('should handle number overrides', async () => {
             const userConfig = {
@@ -199,7 +183,6 @@ describe('ConfigLoader', () => {
                     provider: 'claude',
                     claude: {
                         model: 'claude-3-opus-20240229',
-                        api_key_env: 'MY_KEY',
                         max_tokens: 8192,
                         temperature: 0.7,
                     },

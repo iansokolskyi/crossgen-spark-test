@@ -85,7 +85,7 @@ export interface AIConfig {
 export interface ProviderConfiguration {
   type: ProviderType;
   model: string;
-  apiKeyEnv?: string;
+  apiKey?: string; // API key (loaded from ~/.spark/secrets.yaml)
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string | SystemPromptConfiguration;
@@ -108,7 +108,6 @@ export interface SystemPromptConfiguration {
  */
 export interface ClaudeConfig {
   model: string;
-  api_key_env: string;
   max_tokens: number;
   temperature: number;
 }

@@ -121,9 +121,9 @@ export interface ProviderConfig {
   model: string;
 
   /**
-   * API key environment variable name
+   * API key (loaded from ~/.spark/secrets.yaml)
    */
-  apiKeyEnv?: string;
+  apiKey?: string;
 
   /**
    * Max tokens for completions

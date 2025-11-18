@@ -7,7 +7,7 @@ export interface SparkSettings {
 	enablePalette: boolean;
 	chatHotkey: string;
 	vaultPath: string;
-	apiKeys?: Record<string, string>; // Provider name -> API key
+	// API keys stored in encrypted ~/.spark/secrets.yaml, not in settings
 	chatWindowWidth?: number; // Chat window width in pixels
 	chatWindowHeight?: number; // Chat window height in pixels
 	chatWindowRight?: number; // Chat window position from right edge in pixels

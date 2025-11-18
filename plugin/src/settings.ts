@@ -1,15 +1,19 @@
+/* eslint-env node */
 import { App, PluginSettingTab, Setting, Notice, Modal } from 'obsidian';
 import { SparkSettings, ISparkPlugin } from './types';
 import * as yaml from 'js-yaml';
 import { AgentConfigSchema, SparkConfigSchema, type SparkConfig } from './validation';
 import { ALL_MODELS, getModelLabel, ProviderType, getProviderLabel, getModelsByProvider } from './models';
-import { encryptSecrets } from './crypto/index';
+import { encryptSecrets, decryptSecrets, isEncrypted } from './crypto/index';
+import { homedir } from 'os';
+import { join } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'fs';
 
 export const DEFAULT_SETTINGS: SparkSettings = {
     enablePalette: true,
     chatHotkey: 'Mod+K',
     vaultPath: '',
-    apiKeys: {},
+    // apiKeys intentionally omitted - stored in encrypted ~/.spark/secrets.yaml only
     chatWindowWidth: 400,
     chatWindowHeight: 650,
     chatWindowRight: 0,
@@ -33,10 +37,46 @@ export class SparkSettingTab extends PluginSettingTab {
     plugin: ISparkPlugin;
     private agentsContainer: HTMLElement | null = null;
     private configContainer: HTMLElement | null = null;
+    private cachedApiKeys: Record<string, string> = {};
 
     constructor(app: App, plugin: ISparkPlugin) {
         super(app, plugin);
         this.plugin = plugin;
+    }
+
+    private async loadApiKeys(): Promise<Record<string, string>> {
+        const secretsPath = join(homedir(), '.spark', 'secrets.yaml');
+        try {
+            if (!existsSync(secretsPath)) return {};
+
+            const content = readFileSync(secretsPath, 'utf-8');
+            if (!content.trim()) return {};
+
+            const yamlContent = isEncrypted(content.trim())
+                ? decryptSecrets(content.trim())
+                : content;
+
+            const secrets = yaml.load(yamlContent) as { api_keys?: Record<string, string> };
+            return secrets.api_keys || {};
+        } catch (error) {
+            console.error('[Spark] Error loading API keys:', error);
+            return {};
+        }
+    }
+
+    private async saveApiKeys(apiKeys: Record<string, string>): Promise<void> {
+        const secretsDir = join(homedir(), '.spark');
+        const secretsPath = join(secretsDir, 'secrets.yaml');
+
+        if (!existsSync(secretsDir)) {
+            mkdirSync(secretsDir, { recursive: true });
+        }
+
+        const yamlStr = yaml.dump({ api_keys: apiKeys }, { lineWidth: -1 });
+        const encryptedContent = encryptSecrets(yamlStr);
+
+        writeFileSync(secretsPath, encryptedContent, 'utf-8');
+        chmodSync(secretsPath, 0o600);
     }
 
     display(): void {
@@ -159,45 +199,6 @@ export class SparkSettingTab extends PluginSettingTab {
     }
 
 
-    private async writeSecretsFile() {
-        const homeDir = this.getHomeDirectory();
-        const secretsDir = `${homeDir}/.spark`;
-        const secretsPath = `${secretsDir}/secrets.yaml`;
-
-        try {
-            // Ensure ~/.spark directory exists
-            const fs = require('fs');
-            if (!fs.existsSync(secretsDir)) {
-                fs.mkdirSync(secretsDir, { recursive: true });
-            }
-
-            const secrets = {
-                api_keys: this.plugin.settings.apiKeys || {}
-            };
-
-            // Convert to YAML
-            const yamlStr = yaml.dump(secrets, { lineWidth: -1 });
-
-            // Encrypt the YAML content
-            const encryptedContent = encryptSecrets(yamlStr);
-
-            // Write encrypted content to file
-            fs.writeFileSync(secretsPath, encryptedContent, 'utf-8');
-
-            // Set strict permissions (user-only read/write)
-            fs.chmodSync(secretsPath, 0o600);
-
-            new Notice('API keys saved');
-        } catch (error) {
-            console.error('Error writing secrets file:', error);
-            new Notice('Failed to save API keys');
-        }
-    }
-
-    private getHomeDirectory(): string {
-        // Get user's home directory cross-platform
-        return process.env.HOME || process.env.USERPROFILE || '~';
-    }
 
     private async loadAgents() {
         if (!this.agentsContainer) return;
@@ -557,10 +558,9 @@ export class SparkSettingTab extends PluginSettingTab {
 
         this.configContainer.empty();
 
-        // Initialize apiKeys if not present
-        if (!this.plugin.settings.apiKeys) {
-            this.plugin.settings.apiKeys = {};
-        }
+        // Load API keys from encrypted secrets file
+        this.cachedApiKeys = await this.loadApiKeys();
+
         const configPath = '.spark/config.yaml';
 
         try {
@@ -728,7 +728,7 @@ export class SparkSettingTab extends PluginSettingTab {
 
                 // API Key input
                 const isOptional = providerName === 'claude-code';
-                let apiKeyValue = this.plugin.settings.apiKeys?.[providerName] || '';
+                let apiKeyValue = this.cachedApiKeys[providerName] || '';
 
                 const apiKeySetting = new Setting(providerContent)
                     .setName('API Key')
@@ -799,13 +799,9 @@ export class SparkSettingTab extends PluginSettingTab {
                         .setCta()
                         .onClick(async () => {
                             try {
-                                // Save API key to plugin settings and secrets file
-                                if (!this.plugin.settings.apiKeys) {
-                                    this.plugin.settings.apiKeys = {};
-                                }
-                                this.plugin.settings.apiKeys[providerName] = apiKeyValue;
-                                await this.plugin.saveSettings();
-                                await this.writeSecretsFile();
+                                // Update cached API keys and save to encrypted secrets file
+                                this.cachedApiKeys[providerName] = apiKeyValue;
+                                await this.saveApiKeys(this.cachedApiKeys);
 
                                 // Validate with Zod
                                 const result = SparkConfigSchema.safeParse(config);

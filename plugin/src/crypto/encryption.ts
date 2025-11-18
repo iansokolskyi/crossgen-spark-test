@@ -83,9 +83,13 @@ export function decryptSecrets(encrypted: string): string {
 	const decipher = createDecipheriv(ALGORITHM, key, iv);
 	decipher.setAuthTag(authTag);
 
-	let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
-	decrypted += decipher.final('utf8');
-	return decrypted;
+	try {
+		let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+		decrypted += decipher.final('utf8');
+		return decrypted;
+	} catch {
+		throw new Error('Decryption failed - data may be corrupted or tampered');
+	}
 }
 
 /**

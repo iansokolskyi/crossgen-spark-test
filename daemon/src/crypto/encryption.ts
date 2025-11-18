@@ -62,11 +62,12 @@ export function decryptSecrets(encrypted: string): string {
     throw new Error('Invalid encrypted data format');
   }
 
-  const ivHex = parts[0];
-  const authTagHex = parts[1];
-  const encryptedData = parts[2];
+  const ivHex = parts[0] as string;
+  const authTagHex = parts[1] as string;
+  const encryptedData = parts[2] as string;
 
-  if (!ivHex || !authTagHex || !encryptedData) {
+  // Note: encryptedData can be empty string (when encrypting empty input)
+  if (!ivHex || !authTagHex) {
     throw new Error('Invalid encrypted data format');
   }
 
@@ -80,9 +81,13 @@ export function decryptSecrets(encrypted: string): string {
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
 
-  let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
+  try {
+    let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    throw new Error('Decryption failed - data may be corrupted or tampered');
+  }
 }
 
 /**

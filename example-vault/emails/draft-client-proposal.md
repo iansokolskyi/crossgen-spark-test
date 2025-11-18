@@ -8,8 +8,10 @@ created: 2024-01-15
 # Q4 Marketing Proposal
 
 Hi Client,
-
 I wanted to follow up on our conversation about Q4 marketing initiatives.
+
+
+
 
 ## Proposed Services
 

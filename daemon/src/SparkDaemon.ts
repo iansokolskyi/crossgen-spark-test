@@ -10,7 +10,7 @@ import type { FSWatcher } from 'chokidar';
 import type { ISparkDaemon, DaemonState } from './types/index.js';
 import type { SparkConfig } from './types/config.js';
 import type { FileChange } from './types/watcher.js';
-import type { ParsedCommand, ParsedMention } from './types/parser.js';
+import type { ParsedCommand, ParsedMention, ParsedInlineChat } from './types/parser.js';
 import { ConfigLoader } from './config/ConfigLoader.js';
 import { FileWatcher } from './watcher/FileWatcher.js';
 import { Logger } from './logger/Logger.js';
@@ -473,6 +473,9 @@ export class SparkDaemon implements ISparkDaemon {
       // Process commands
       this.processCommands(change.path, fullPath, parsed.commands);
 
+      // Process inline chats
+      this.processInlineChats(change.path, fullPath, parsed.inlineChats);
+
       // Process frontmatter changes
       this.processFrontmatterChanges(fullPath, change.path, parsed.content);
     } catch (error) {
@@ -526,6 +529,48 @@ export class SparkDaemon implements ISparkDaemon {
         this.logger!.error('Command execution failed', {
           error: error instanceof Error ? error.message : String(error),
           command: command.raw,
+        });
+      });
+    }
+  }
+
+  private processInlineChats(
+    relativePath: string,
+    fullPath: string,
+    inlineChats: ParsedInlineChat[]
+  ): void {
+    const pendingChats = inlineChats.filter((chat) => chat.status === 'pending');
+
+    if (pendingChats.length === 0) {
+      return;
+    }
+
+    this.logger!.info(`Found ${pendingChats.length} pending inline chat(s)`, {
+      file: relativePath,
+      chats: pendingChats.map((c) => ({ id: c.id, message: c.userMessage.substring(0, 50) })),
+    });
+
+    // Execute inline chats
+    for (const chat of pendingChats) {
+      this.logger!.debug('Inline chat detected', {
+        id: chat.id,
+        startLine: chat.startLine,
+        endLine: chat.endLine,
+        userMessage: chat.userMessage.substring(0, 100),
+      });
+
+      if (this.inspector) {
+        this.inspector.recordCommandDetected(relativePath, 'inline-chat', {
+          line: chat.startLine,
+          type: 'inline-chat',
+          mentions: 0,
+        });
+      }
+
+      void this.commandExecutor!.executeInlineChat(chat, fullPath).catch((error) => {
+        this.logger!.error('Inline chat execution failed', {
+          error: error instanceof Error ? error.message : String(error),
+          chatId: chat.id,
         });
       });
     }

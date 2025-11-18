@@ -277,24 +277,36 @@ export class CommandPaletteManager {
 		const { editor, line, ch } = this.activeTrigger;
 		this.closePalette();
 
-		this.insertItem(editor, line, ch, item.id);
+		this.insertItem(editor, line, ch, item);
 		this.scheduleInsertionFlagClear();
 	}
 
 	/**
 	 * Insert selected item into editor
 	 */
-	private insertItem(editor: Editor, line: number, triggerCh: number, itemId: string): void {
+	private insertItem(editor: Editor, line: number, triggerCh: number, item: PaletteItem): void {
 		this.isInserting = true;
 
 		const currentCursor = editor.getCursor();
-		const replacement = `${itemId} `;
+		const replacement = `${item.id} `;
 
 		// Use replaceRange instead of setLine - better for tables
 		// Replaces from trigger char position to current cursor
 		editor.replaceRange(replacement, { line, ch: triggerCh - 1 }, { line, ch: currentCursor.ch });
 
 		// replaceRange automatically positions cursor at end of replacement
+
+		// Emit event for agent mention completion (for inline chat)
+		if (item.type === 'agent') {
+			const event = new CustomEvent('spark-agent-mention-complete', {
+				detail: {
+					agentName: item.id.substring(1), // Remove @ prefix
+					editor,
+					line,
+				},
+			});
+			document.dispatchEvent(event);
+		}
 	}
 
 	/**

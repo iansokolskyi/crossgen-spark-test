@@ -11,11 +11,11 @@ export class Plugin {
 	async loadData(): Promise<any> {
 		return {};
 	}
-	async saveData(_data: any): Promise<void> {}
-	addCommand(_command: any): void {}
-	addRibbonIcon(_icon: string, _title: string, _callback: () => void): void {}
-	registerDomEvent(_el: HTMLElement, _type: string, _callback: () => void): void {}
-	registerInterval(_intervalID: number): void {}
+	async saveData(_data: any): Promise<void> { }
+	addCommand(_command: any): void { }
+	addRibbonIcon(_icon: string, _title: string, _callback: () => void): void { }
+	registerDomEvent(_el: HTMLElement, _type: string, _callback: () => void): void { }
+	registerInterval(_intervalID: number): void { }
 }
 
 export class Modal {
@@ -25,14 +25,20 @@ export class Modal {
 		this.app = app;
 		this.containerEl = document.createElement('div');
 	}
-	open(): void {}
-	close(): void {}
-	onOpen(): void {}
-	onClose(): void {}
+	open(): void { }
+	close(): void { }
+	onOpen(): void { }
+	onClose(): void { }
 }
 
+// Notice class - uses globalThis mock if available (for testing)
 export class Notice {
-	constructor(_message: string, _timeout?: number) {}
+	constructor(message: string, timeout?: number) {
+		// Use globalThis.Notice if it exists (from tests)
+		if ((globalThis as any).Notice && (globalThis as any).Notice !== Notice) {
+			return new (globalThis as any).Notice(message, timeout);
+		}
+	}
 }
 
 export class ItemView {
@@ -48,8 +54,8 @@ export class ItemView {
 	getDisplayText(): string {
 		return 'View';
 	}
-	async onOpen(): Promise<void> {}
-	async onClose(): Promise<void> {}
+	async onOpen(): Promise<void> { }
+	async onClose(): Promise<void> { }
 }
 
 export class MarkdownView {
@@ -94,23 +100,23 @@ export const Platform = {
 };
 
 export const Workspace = {
-	getActiveFile: jest.fn(),
-	getActiveViewOfType: jest.fn(),
-	on: jest.fn(),
-	off: jest.fn(),
+	getActiveFile: () => null,
+	getActiveViewOfType: () => null,
+	on: () => { },
+	off: () => { },
 };
 
 export const Vault = {
-	read: jest.fn(),
-	modify: jest.fn(),
-	create: jest.fn(),
-	delete: jest.fn(),
-	getFiles: jest.fn(() => []),
-	getAbstractFileByPath: jest.fn(),
+	read: () => Promise.resolve(''),
+	modify: () => Promise.resolve(),
+	create: () => Promise.resolve({} as any),
+	delete: () => Promise.resolve(),
+	getFiles: () => [],
+	getAbstractFileByPath: () => null,
 };
 
 export const MetadataCache = {
-	getFileCache: jest.fn(),
-	on: jest.fn(),
-	off: jest.fn(),
+	getFileCache: () => null,
+	on: () => { },
+	off: () => { },
 };

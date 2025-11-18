@@ -23,12 +23,10 @@ export interface ParsedMention {
 export interface ParsedCommand {
   line: number;
   raw: string;
-  fullText: string; // Alias for raw (for backwards compatibility)
   type: 'slash' | 'mention-chain';
   command?: string;
   args?: string;
   mentions?: ParsedMention[];
-  finalCommand?: string;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   statusEmoji?: string;
   isComplete: boolean; // Whether command appears complete (ends with punctuation)
@@ -44,6 +42,7 @@ export interface ParsedFile {
   commands: ParsedCommand[];
   mentions: ParsedMention[];
   triggeredSOPs: string[];
+  inlineChats: ParsedInlineChat[];
 }
 
 /**
@@ -77,4 +76,38 @@ export interface ICommandDetector {
 export interface IFrontmatterParser {
   detectChanges(filePath: string, content: string): FrontmatterChange[];
   extractFrontmatter(content: string): Record<string, unknown>;
+}
+
+/**
+ * Inline chat marker status
+ */
+export type InlineChatStatus = 'pending' | 'processing' | 'complete' | 'error';
+
+/**
+ * Parsed inline chat marker
+ */
+export interface ParsedInlineChat {
+  /** Line number where marker starts */
+  startLine: number;
+  /** Line number where marker ends */
+  endLine: number;
+  /** Unique ID from marker */
+  id: string;
+  /** Status of inline chat */
+  status: InlineChatStatus;
+  /** User's message */
+  userMessage: string;
+  /** AI response (if status is 'complete') */
+  aiResponse?: string;
+  /** Raw marker text */
+  raw: string;
+  /** Parsed mentions from user message (@agent, @file, etc.) */
+  mentions?: ParsedMention[];
+}
+
+/**
+ * Interface for inline chat detectors
+ */
+export interface IInlineChatDetector {
+  detectInFile(content: string): ParsedInlineChat[];
 }

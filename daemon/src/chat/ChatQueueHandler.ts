@@ -72,7 +72,6 @@ export class ChatQueueHandler {
       const command: ParsedCommand = {
         line: 0,
         raw: fullPrompt,
-        fullText: fullPrompt,
         status: 'pending',
         isComplete: true,
         type: 'mention-chain',

@@ -14,7 +14,6 @@ describe('PromptBuilder', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/summarize this text',
-                fullText: '/summarize this text',
                 type: 'slash',
                 command: 'summarize',
                 args: 'this text',
@@ -45,7 +44,6 @@ describe('PromptBuilder', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '@betty analyze this',
-                fullText: '@betty analyze this',
                 type: 'mention-chain',
                 mentions: [{ type: 'agent', raw: '@betty', value: 'betty', position: 0 }],
                 status: 'pending',
@@ -77,7 +75,6 @@ describe('PromptBuilder', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/summarize this document',
-                fullText: '/summarize this document',
                 type: 'slash',
                 command: 'summarize',
                 args: 'this document',
@@ -107,7 +104,6 @@ describe('PromptBuilder', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '@file1 summarize',
-                fullText: '@file1 summarize',
                 type: 'mention-chain',
                 mentions: [{ type: 'file', raw: '@file1', value: 'file1', position: 0 }],
                 status: 'pending',
@@ -142,7 +138,6 @@ describe('PromptBuilder', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/summarize',
-                fullText: '/summarize',
                 type: 'slash',
                 command: 'summarize',
                 status: 'pending',
@@ -172,7 +167,6 @@ describe('PromptBuilder', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/summarize',
-                fullText: '/summarize',
                 type: 'slash',
                 command: 'summarize',
                 status: 'pending',
@@ -208,7 +202,6 @@ describe('PromptBuilder', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/test',
-                fullText: '/test',
                 type: 'slash',
                 command: 'test',
                 status: 'pending',

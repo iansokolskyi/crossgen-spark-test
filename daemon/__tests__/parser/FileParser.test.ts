@@ -87,5 +87,66 @@ status: draft
             expect(typeof frontmatterParser.detectChanges).toBe('function');
         });
     });
+
+    describe('getInlineChatDetector', () => {
+        it('should return the inline chat detector instance', () => {
+            const detector = parser.getInlineChatDetector();
+
+            expect(detector).toBeDefined();
+            expect(typeof detector.detectInFile).toBe('function');
+        });
+    });
+
+    describe('hasPendingCommands', () => {
+        it('should return true when file has pending commands', () => {
+            const content = '/summarize this document';
+            const parsedFile = parser.parseFile('/vault/test.md', content);
+
+            expect(parser.hasPendingCommands(parsedFile)).toBe(true);
+        });
+
+        it('should return false when file has no commands', () => {
+            const content = '# Simple document\n\nNo commands here.';
+            const parsedFile = parser.parseFile('/vault/test.md', content);
+
+            expect(parser.hasPendingCommands(parsedFile)).toBe(false);
+        });
+
+        it('should return false when all commands are completed', () => {
+            const content = '# Document\n\nSome content.';
+            const parsedFile = parser.parseFile('/vault/test.md', content);
+            // Simulate all commands being completed
+            parsedFile.commands.forEach(cmd => cmd.status = 'completed');
+
+            expect(parser.hasPendingCommands(parsedFile)).toBe(false);
+        });
+    });
+
+    describe('hasPendingInlineChats', () => {
+        it('should return true when file has pending inline chats', () => {
+            const content = `<!-- spark-inline-chat:pending:test-id:betty:How do I calculate burn rate? -->
+Some response here
+<!-- /spark-inline-chat -->`;
+            const parsedFile = parser.parseFile('/vault/test.md', content);
+
+            expect(parser.hasPendingInlineChats(parsedFile)).toBe(true);
+        });
+
+        it('should return false when file has no inline chats', () => {
+            const content = '# Simple document\n\nNo inline chats here.';
+            const parsedFile = parser.parseFile('/vault/test.md', content);
+
+            expect(parser.hasPendingInlineChats(parsedFile)).toBe(false);
+        });
+
+        it('should return false when all inline chats are complete', () => {
+            const content = `<!-- spark-inline-chat:complete:test-id:betty:How do I calculate burn rate? -->
+Some response here
+<!-- /spark-inline-chat -->`;
+            const parsedFile = parser.parseFile('/vault/test.md', content);
+
+            expect(parser.hasPendingInlineChats(parsedFile)).toBe(false);
+        });
+    });
 });
 

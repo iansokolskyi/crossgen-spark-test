@@ -127,24 +127,6 @@ describe('ClaudeCodeProvider', () => {
     });
   });
 
-  describe('isHealthy', () => {
-    // Note: Mocking execAsync is complex with ES modules
-    // Skip this test as it's environment-dependent (requires CLI to NOT be installed)
-    it.skip('should return false when CLI is not available (actual behavior)', async () => {
-      const provider = new ClaudeCodeProvider(mockConfig);
-
-      const healthy = await provider.isHealthy();
-
-      // In test environment without CLI installed, this should be false
-      expect(healthy).toBe(false);
-    });
-
-    it.skip('should return true if claude-code CLI is available', async () => {
-      // This test requires actual claude-code CLI or complex module mocking
-      // Should be tested in integration tests
-    });
-  });
-
   describe('getConfig', () => {
     it('should return provider configuration', () => {
       const provider = new ClaudeCodeProvider(mockConfig);
@@ -168,38 +150,6 @@ describe('ClaudeCodeProvider', () => {
       const config = provider.getConfig();
 
       expect(config.fallbackProvider).toBe('claude-agent');
-    });
-  });
-
-  describe('complete', () => {
-    // Note: Full integration tests require actual claude-code CLI installation
-    // Skip this test as it's environment-dependent (requires CLI to NOT be installed)
-    it.skip('should throw error if CLI is not available (actual behavior)', async () => {
-      const provider = new ClaudeCodeProvider(mockConfig);
-
-      // In test environment, CLI is not installed, so this should fail
-      await expect(
-        provider.complete({
-          prompt: 'Test prompt',
-        })
-      ).rejects.toThrow('Claude Code CLI not found');
-    });
-
-    // Skip actual CLI tests in unit tests - they require the CLI to be installed
-    // Integration tests or E2E tests should cover actual CLI execution
-    it.skip('should call claude-code CLI with correct parameters', async () => {
-      // This test requires actual claude-code CLI installation
-      // Should be tested in integration tests
-    });
-
-    it.skip('should handle empty response from CLI', async () => {
-      // This test requires actual claude-code CLI installation
-      // Should be tested in integration tests
-    });
-
-    it.skip('should include context files in system prompt', async () => {
-      // This test requires actual claude-code CLI installation
-      // Should be tested in integration tests
     });
   });
 });

@@ -18,6 +18,7 @@ export class CommandDetector implements ICommandDetector {
     const commands: ParsedCommand[] = [];
     let inCodeBlock = false;
     let inSparkResult = false; // Track if we're inside an AI response
+    let inInlineChat = false; // Track if we're inside an inline chat marker
 
     lines.forEach((line, index) => {
       // Skip AI responses to prevent feedback loop
@@ -31,6 +32,19 @@ export class CommandDetector implements ICommandDetector {
       }
       if (inSparkResult) {
         return; // Skip lines inside AI responses
+      }
+
+      // Skip inline chat markers to prevent conflict with inline chat system
+      if (line.trim().match(/<!--\s*spark-inline-chat:/)) {
+        inInlineChat = true;
+        return;
+      }
+      if (line.trim().match(/<!--\s*\/spark-inline-chat\s*-->/)) {
+        inInlineChat = false;
+        return;
+      }
+      if (inInlineChat) {
+        return; // Skip lines inside inline chat markers
       }
       // Track code blocks
       if (line.trim().startsWith('```')) {
@@ -61,10 +75,10 @@ export class CommandDetector implements ICommandDetector {
 
       // Determine command type
       const commandMention = mentions.find((m) => m.type === 'command');
-      const agentMention = mentions.find((m) => m.type === 'agent');
 
-      // Must have either a command or an agent to be executable
-      if (!commandMention && !agentMention) {
+      // Only process slash commands (not bare agent mentions)
+      // Agent mentions should use the inline chat system
+      if (!commandMention) {
         return;
       }
 
@@ -99,34 +113,19 @@ export class CommandDetector implements ICommandDetector {
     const commandMention = mentions.find((m) => m.type === 'command');
     const isComplete = this.isCommandComplete(raw);
 
-    if (commandMention) {
-      // Slash command
-      return {
-        line: lineNumber,
-        raw,
-        fullText: raw, // Alias for backwards compatibility
-        type: 'slash',
-        command: commandMention.value,
-        args: this.extractArgs(raw, commandMention.raw),
-        mentions,
-        status,
-        statusEmoji,
-        isComplete,
-      };
-    } else {
-      // Mention chain (contains agent and other mentions)
-      return {
-        line: lineNumber,
-        raw,
-        fullText: raw, // Alias for backwards compatibility
-        type: 'mention-chain',
-        mentions,
-        finalCommand: this.extractFinalCommand(mentions),
-        status,
-        statusEmoji,
-        isComplete,
-      };
-    }
+    // Only slash commands are supported
+    // Agent mentions should use the inline chat system
+    return {
+      line: lineNumber,
+      raw,
+      type: 'slash',
+      command: commandMention!.value,
+      args: this.extractArgs(raw, commandMention!.raw),
+      mentions,
+      status,
+      statusEmoji,
+      isComplete,
+    };
   }
 
   /**
@@ -158,15 +157,6 @@ export class CommandDetector implements ICommandDetector {
 
     const afterCommand = line.substring(commandIndex + commandText.length).trim();
     return afterCommand || undefined;
-  }
-
-  private extractFinalCommand(mentions: ParsedMention[]): string | undefined {
-    // Last command mention in the chain is the final action
-    const commandMentions = mentions.filter((m) => m.type === 'command');
-    if (commandMentions.length > 0) {
-      return commandMentions[commandMentions.length - 1]?.value;
-    }
-    return undefined;
   }
 
   private getStatusFromEmoji(emoji: string): ParsedCommand['status'] {

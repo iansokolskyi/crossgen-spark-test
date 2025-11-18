@@ -15,19 +15,8 @@ describe('CommandDetector', () => {
             expect(commands).toHaveLength(1);
             expect(commands[0]).toMatchObject({
                 status: 'pending',
-                fullText: '/summarize this document',
+                raw: '/summarize this document',
                 line: 1,
-            });
-        });
-
-        it('should detect pending mention chain', () => {
-            const content = '@betty review @report.md';
-            const commands = detector.detectInFile(content);
-
-            expect(commands).toHaveLength(1);
-            expect(commands[0]).toMatchObject({
-                status: 'pending',
-                fullText: '@betty review @report.md',
             });
         });
 
@@ -54,7 +43,7 @@ describe('CommandDetector', () => {
         });
 
         it('should detect ✓ completed command', () => {
-            const content = '✓ @betty review this';
+            const content = '✓ /review this document';
             const commands = detector.detectInFile(content);
 
             expect(commands).toHaveLength(1);
@@ -89,7 +78,7 @@ describe('CommandDetector', () => {
         });
 
         it('should detect ✗ failed command', () => {
-            const content = '✗ @betty analyze this';
+            const content = '✗ /analyze this data';
             const commands = detector.detectInFile(content);
 
             expect(commands).toHaveLength(1);
@@ -113,7 +102,7 @@ describe('CommandDetector', () => {
         });
 
         it('should detect 🔄 in-progress command', () => {
-            const content = '🔄 @betty analyze this';
+            const content = '🔄 /analyze this data';
             const commands = detector.detectInFile(content);
 
             expect(commands).toHaveLength(1);
@@ -196,14 +185,6 @@ describe('CommandDetector', () => {
             const commands = detector.detectInFile(content);
 
             expect(commands[0]!.raw).toBe('/summarize this entire line of text');
-        });
-
-        it('should extract multi-line for mention chains', () => {
-            const content = '@betty review\n@report.md and\n@finance/';
-            const commands = detector.detectInFile(content);
-
-            // Should detect it as one command spanning multiple lines
-            expect(commands).toHaveLength(1);
         });
 
         it('should handle command at end of file', () => {
@@ -290,8 +271,168 @@ describe('CommandDetector', () => {
             const statuses = commands.map(c => c.status);
             expect(statuses).toContain('pending');
             expect(statuses).toContain('completed');
-            expect(statuses).toContain('in_progress');
+            // Note: in_progress and failed tests now use slash commands only
             expect(statuses).toContain('failed');
+        });
+    });
+
+    describe('Inline Chat Marker Skipping', () => {
+        it('should skip commands inside inline chat markers', () => {
+            const content = `# Document
+
+<!-- spark-inline-chat:pending:abc-123 -->
+/summarize this should be ignored
+<!-- /spark-inline-chat -->
+
+/analyze this should be detected`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.raw).toContain('/analyze');
+            expect(commands[0]!.raw).not.toContain('/summarize');
+        });
+
+        it('should skip agent mentions inside inline chat markers', () => {
+            const content = `# Document
+
+<!-- spark-inline-chat:complete:def-456 -->
+AI: Here's the answer about @betty
+<!-- /spark-inline-chat -->
+
+/command outside`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.command).toBe('command');
+        });
+
+        it('should handle multiple inline chat markers', () => {
+            const content = `# Document
+
+/command1
+
+<!-- spark-inline-chat:pending:abc-123 -->
+User: /ignored1
+<!-- /spark-inline-chat -->
+
+/command2
+
+<!-- spark-inline-chat:complete:def-456 -->
+AI: Response with /ignored2
+<!-- /spark-inline-chat -->
+
+/command3`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(3);
+            expect(commands[0]!.command).toBe('command1');
+            expect(commands[1]!.command).toBe('command2');
+            expect(commands[2]!.command).toBe('command3');
+        });
+
+        it('should handle inline chat with processing status', () => {
+            const content = `<!-- spark-inline-chat:processing:xyz-789 -->
+User: /this should be ignored
+<!-- /spark-inline-chat -->
+
+/analyze`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.command).toBe('analyze');
+        });
+
+        it('should handle inline chat with error status', () => {
+            const content = `/command1
+
+<!-- spark-inline-chat:error:err-123 -->
+User: Failed request /ignored
+<!-- /spark-inline-chat -->
+
+/command2`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(2);
+            expect(commands[0]!.command).toBe('command1');
+            expect(commands[1]!.command).toBe('command2');
+        });
+
+        it('should detect commands between inline chat markers', () => {
+            const content = `<!-- spark-inline-chat:complete:first-123 -->
+AI: First response
+<!-- /spark-inline-chat -->
+
+/analyze
+
+<!-- spark-inline-chat:complete:second-456 -->
+AI: Second response
+<!-- /spark-inline-chat -->`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.command).toBe('analyze');
+        });
+
+        it('should handle inline chat at start of file', () => {
+            const content = `<!-- spark-inline-chat:complete:start-123 -->
+AI: /ignored
+<!-- /spark-inline-chat -->
+
+/summarize`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.command).toBe('summarize');
+        });
+
+        it('should handle inline chat at end of file', () => {
+            const content = `/analyze
+
+<!-- spark-inline-chat:pending:end-123 -->
+User: /ignored
+<!-- /spark-inline-chat -->`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.command).toBe('analyze');
+        });
+
+        it('should handle nested-looking markers correctly', () => {
+            const content = `<!-- spark-inline-chat:complete:outer-123 -->
+AI: Here's info about <!-- spark-result-start --> markers
+<!-- /spark-inline-chat -->
+
+/command`;
+
+            const commands = detector.detectInFile(content);
+
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.command).toBe('command');
+        });
+
+        it('should not be confused by inline chat markers in code blocks', () => {
+            const content = `\`\`\`markdown
+<!-- spark-inline-chat:pending:fake-123 -->
+This is just example text
+<!-- /spark-inline-chat -->
+\`\`\`
+
+/summarize`;
+
+            const commands = detector.detectInFile(content);
+
+            // The detector will still skip the fake markers as it doesn't parse markdown
+            // This is expected behavior - it's safer to skip than accidentally process
+            expect(commands).toHaveLength(1);
+            expect(commands[0]!.command).toBe('summarize');
         });
     });
 });

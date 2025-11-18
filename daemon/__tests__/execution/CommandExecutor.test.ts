@@ -125,7 +125,6 @@ describe('CommandExecutor', () => {
             const command: ParsedCommand = {
                 line: 3,
                 raw: '/summarize this',
-                fullText: '/summarize this',
                 type: 'slash',
                 command: 'summarize',
                 args: 'this',
@@ -186,7 +185,6 @@ describe('CommandExecutor', () => {
             const command: ParsedCommand = {
                 line: 3,
                 raw: '@betty analyze @report.md',
-                fullText: '@betty analyze @report.md',
                 type: 'mention-chain',
                 mentions: [
                     { type: 'agent', raw: '@betty', value: 'betty', position: 0 },
@@ -232,7 +230,6 @@ describe('CommandExecutor', () => {
             const command: ParsedCommand = {
                 line: 3,
                 raw: '/test',
-                fullText: '/test',
                 type: 'slash',
                 command: 'test',
                 status: 'pending',
@@ -262,7 +259,6 @@ describe('CommandExecutor', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/test',
-                fullText: '/test',
                 type: 'slash',
                 command: 'test',
                 status: 'pending',
@@ -300,7 +296,6 @@ describe('CommandExecutor', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/summarize this.',
-                fullText: '/summarize this.',
                 type: 'slash',
                 command: 'summarize',
                 args: 'this.',
@@ -315,7 +310,6 @@ describe('CommandExecutor', () => {
             const command: ParsedCommand = {
                 line: 1,
                 raw: '/summarize this',
-                fullText: '/summarize this',
                 type: 'slash',
                 command: 'summarize',
                 args: 'this',

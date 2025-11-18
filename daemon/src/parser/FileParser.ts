@@ -8,17 +8,20 @@ import type { ParsedFile } from '../types/parser.js';
 import { MentionParser } from './MentionParser.js';
 import { CommandDetector } from './CommandDetector.js';
 import { FrontmatterParser } from './FrontmatterParser.js';
+import { InlineChatDetector } from './InlineChatDetector.js';
 import { SparkError } from '../types/index.js';
 
 export class FileParser {
   private mentionParser: MentionParser;
   private commandDetector: CommandDetector;
   private frontmatterParser: FrontmatterParser;
+  private inlineChatDetector: InlineChatDetector;
 
   constructor() {
     this.mentionParser = new MentionParser();
     this.commandDetector = new CommandDetector();
     this.frontmatterParser = new FrontmatterParser();
+    this.inlineChatDetector = new InlineChatDetector();
   }
 
   /**
@@ -58,6 +61,9 @@ export class FileParser {
     // Parse all mentions in the file
     const mentions = this.mentionParser.parse(contentWithoutFrontmatter);
 
+    // Detect inline chats
+    const inlineChats = this.inlineChatDetector.detectInFile(content);
+
     return {
       path: filePath,
       content,
@@ -65,6 +71,7 @@ export class FileParser {
       commands,
       mentions,
       triggeredSOPs: [], // Will be populated by trigger matcher
+      inlineChats,
     };
   }
 
@@ -76,9 +83,23 @@ export class FileParser {
   }
 
   /**
+   * Check if file has any pending inline chats
+   */
+  public hasPendingInlineChats(parsedFile: ParsedFile): boolean {
+    return parsedFile.inlineChats.some((chat) => chat.status === 'pending');
+  }
+
+  /**
    * Get frontmatter parser for external use
    */
   public getFrontmatterParser(): FrontmatterParser {
     return this.frontmatterParser;
+  }
+
+  /**
+   * Get inline chat detector for external use
+   */
+  public getInlineChatDetector(): InlineChatDetector {
+    return this.inlineChatDetector;
   }
 }

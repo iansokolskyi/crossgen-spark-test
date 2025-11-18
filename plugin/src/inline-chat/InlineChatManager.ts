@@ -3,11 +3,18 @@
  * Orchestrates detection, widget display, and marker writing
  */
 
-import type { App, Editor } from 'obsidian';
+import type { App, Editor, TFile } from 'obsidian';
 import { Notice } from 'obsidian';
 import { InlineChatDetector } from './InlineChatDetector';
 import { InlineChatWidget } from './InlineChatWidget';
 import type { DetectedAgentMention } from './types';
+
+interface PendingChat {
+	uuid: string;
+	filePath: string;
+	agentName: string;
+	timestamp: number;
+}
 
 export class InlineChatManager {
 	private app: App;
@@ -20,6 +27,10 @@ export class InlineChatManager {
 	private mentionLineNumber: number = -1;
 	private insertedBlankLines: number = 0; // Track how many blank lines we inserted
 	private markerId: string = ''; // Unique ID for this inline chat instance
+	private pendingChats: Map<string, PendingChat> = new Map(); // Track chats waiting for daemon
+	private fileModifyHandler: ((file: TFile) => void) | null = null;
+	private currentUserMessage: string = ''; // Track current user message for processing display
+	private agentMentionCompleteHandler: EventListener | null = null;
 
 	constructor(app: App) {
 		this.app = app;
@@ -40,6 +51,20 @@ export class InlineChatManager {
 
 		// Register with workspace
 		this.app.workspace.on('editor-change', this.editorChangeHandler);
+
+		// Create file modification handler to detect when daemon completes
+		this.fileModifyHandler = (file: TFile) => {
+			void this.handleFileModify(file);
+		};
+
+		// Register file modification listener
+		this.app.vault.on('modify', this.fileModifyHandler);
+
+		// Listen for agent mention completion from command palette
+		this.agentMentionCompleteHandler = ((evt: CustomEvent) => {
+			this.handleAgentMentionComplete(evt.detail);
+		}) as EventListener;
+		document.addEventListener('spark-agent-mention-complete', this.agentMentionCompleteHandler);
 	}
 
 	/**
@@ -47,40 +72,115 @@ export class InlineChatManager {
 	 * Call this from plugin's EditorChange event
 	 */
 	handleEditorChange(editor: Editor): void {
-		// Detect agent mention at cursor
+		// Check if widget should be hidden (no mention and no pending chats)
 		const mention = this.detector.detectAgentMention(editor);
-
-		// If no mention, hide widget if showing
-		if (!mention) {
-			if (this.activeWidget?.isVisible()) {
-				this.hideWidget();
-			}
-			return;
+		if (!mention && this.activeWidget?.isVisible() && this.pendingChats.size === 0) {
+			this.hideWidget();
 		}
+	}
+
+	/**
+	 * Handle agent mention completion from command palette
+	 * This is the clear event that triggers inline chat widget
+	 */
+	private handleAgentMentionComplete(detail: {
+		agentName: string;
+		editor: Editor;
+		line: number;
+	}): void {
+		const { agentName, editor, line } = detail;
+
+		console.log('[Spark Inline Chat] Agent mention completed via palette', {
+			agentName,
+			line,
+		});
 
 		// Check if already has marker (don't show widget if already processed)
-		if (this.detector.hasExistingMarker(editor, mention.line)) {
+		if (this.detector.hasExistingMarker(editor, line)) {
 			return;
 		}
 
 		// Validate agent
-		if (!this.detector.isValidAgent(mention.agentName)) {
+		if (!this.detector.isValidAgent(agentName)) {
 			return;
 		}
 
-		// If same mention as before, don't recreate widget
-		if (
-			this.currentMention &&
-			this.currentMention.agentName === mention.agentName &&
-			this.currentMention.line === mention.line
-		) {
-			return;
-		}
+		// Create mention object
+		const mention: DetectedAgentMention = {
+			agentName,
+			line,
+			ch: editor.getCursor().ch,
+			position: editor.getCursor(),
+		};
 
-		// New mention detected - show widget
+		// Show widget
 		this.currentMention = mention;
 		this.currentEditor = editor;
 		this.showWidget(editor, mention);
+	}
+
+	/**
+	 * Handle file modification event
+	 * Detects when daemon completes inline chat requests
+	 */
+	private async handleFileModify(file: TFile): Promise<void> {
+		// Only process if we have pending chats
+		if (this.pendingChats.size === 0) {
+			return;
+		}
+
+		// Check if this file has any pending chats
+		const pendingForFile = Array.from(this.pendingChats.values()).filter(
+			chat => chat.filePath === file.path
+		);
+
+		if (pendingForFile.length === 0) {
+			return;
+		}
+
+		// Read file content
+		const content = await this.app.vault.read(file);
+
+		// Check each pending chat to see if it's complete
+		// Since daemon now removes all markers, we detect completion by the absence of pending marker
+		for (const pendingChat of pendingForFile) {
+			const pendingMarker = `<!-- spark-inline-chat:pending:${pendingChat.uuid}`;
+
+			// If pending marker is gone, the daemon has processed it
+			if (!content.includes(pendingMarker)) {
+				// Chat completed (daemon removed markers and inserted response)
+				const elapsed = Date.now() - pendingChat.timestamp;
+				console.log('[Spark Inline Chat] Chat completed:', {
+					uuid: pendingChat.uuid,
+					agent: pendingChat.agentName,
+					elapsed: `${elapsed}ms`,
+				});
+
+				// Hide the processing widget if it's for this chat
+				if (this.activeWidget && this.activeWidget.isVisible()) {
+					this.hideWidget();
+					this.resetState();
+				}
+
+				// Show subtle notification
+				new Notice(`✓ @${pendingChat.agentName} responded (${Math.round(elapsed / 1000)}s)`);
+
+				// Remove from pending
+				this.pendingChats.delete(pendingChat.uuid);
+			}
+		}
+
+		// Clean up old pending chats (older than 5 minutes)
+		const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+		for (const [uuid, chat] of this.pendingChats.entries()) {
+			if (chat.timestamp < fiveMinutesAgo) {
+				console.warn('[Spark Inline Chat] Removing stale pending chat:', {
+					uuid,
+					age: Date.now() - chat.timestamp,
+				});
+				this.pendingChats.delete(uuid);
+			}
+		}
 	}
 
 	/**
@@ -122,10 +222,9 @@ export class InlineChatManager {
 				return;
 			}
 
-			// Create and show widget with @agent pre-populated
+			// Create and show widget (no initial message, agent is stored separately)
 			this.activeWidget = new InlineChatWidget(this.app, {
 				agentName: mention.agentName,
-				initialMessage: `@${mention.agentName} `,
 				onSend: message => this.handleSend(message),
 				onCancel: () => this.handleCancel(),
 				top: position.top,
@@ -274,18 +373,111 @@ export class InlineChatManager {
 			message,
 		});
 
-		// TODO Step 2: Insert marker and user message
-		// For now, just log and hide widget
-		// Will implement in Step 2:
-		// 1. Generate unique ID
-		// 2. Insert marker after @agent line
-		// 3. Insert user message
-		// 4. Close widget
+		// Get current file path
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) {
+			new Notice('Error: No active file');
+			return;
+		}
 
-		this.hideWidget();
+		// Generate UUID for daemon tracking
+		const uuid = window.crypto.randomUUID();
 
-		// Show temporary notification
-		new Notice(`Inline chat: Message sent to @${this.currentMention.agentName}`);
+		// Track this pending chat for completion detection
+		this.pendingChats.set(uuid, {
+			uuid,
+			filePath: activeFile.path,
+			agentName: this.currentMention.agentName,
+			timestamp: Date.now(),
+		});
+
+		console.log('[Spark Inline Chat] Tracking pending chat:', {
+			uuid,
+			filePath: activeFile.path,
+			totalPending: this.pendingChats.size,
+		});
+
+		// Extract clean user message (remove @agent prefix)
+		const cleanMessage = message.replace(/^@\w+\s*/, '').trim();
+		this.currentUserMessage = cleanMessage;
+
+		// Step 2: Replace positioning markers with final daemon-readable format
+		this.replacMarkersWithFinalFormat(this.currentEditor, message, uuid);
+
+		// Transform widget to processing state (instead of hiding)
+		// The marker is now invisible (HTML comment), widget shows content visually
+		if (this.activeWidget) {
+			this.activeWidget.transformToProcessing(cleanMessage);
+		}
+
+		// Show notification
+		new Notice(`Message sent to @${this.currentMention.agentName}`);
+
+		// Don't reset state yet - keep widget visible in processing mode
+		// State will be reset when completion is detected in handleFileModify()
+	}
+
+	/**
+	 * Replace positioning markers with final daemon-readable format
+	 * Converts: <!-- spark-inline-{id}-start --> ... <!-- spark-inline-{id}-end -->
+	 * To: <!-- spark-inline-chat:pending:uuid --> User: message <!-- /spark-inline-chat -->
+	 */
+	private replacMarkersWithFinalFormat(editor: Editor, userMessage: string, uuid: string): void {
+		if (!this.markerId) {
+			console.warn('[Spark Inline Chat] No marker ID to replace');
+			return;
+		}
+
+		// Find the start and end marker lines
+		const lineCount = editor.lineCount();
+		let startLine = -1;
+		let endLine = -1;
+
+		for (let i = 0; i < lineCount; i++) {
+			const line = editor.getLine(i);
+			if (line.includes(`${this.markerId}-start`)) {
+				startLine = i;
+			} else if (line.includes(`${this.markerId}-end`)) {
+				endLine = i;
+				break;
+			}
+		}
+
+		if (startLine === -1 || endLine === -1) {
+			console.warn('[Spark Inline Chat] Could not find markers to replace');
+			return;
+		}
+
+		// Extract user message (remove @agent prefix if present)
+		const cleanMessage = userMessage.replace(/^@\w+\s*/, '').trim();
+
+		// Build final marker format with agent and user message encoded in the comment
+		// This keeps it hidden from view while still parseable by the daemon
+		// Format: <!-- spark-inline-chat:pending:uuid:agentName:message -->
+		// Escape newlines in message so it fits in a single-line HTML comment
+		const agentName = this.currentMention?.agentName || '';
+		const escapedMessage = cleanMessage.replace(/\n/g, '\\n');
+		const openingMarker = `<!-- spark-inline-chat:pending:${uuid}:${agentName}:${escapedMessage} -->`;
+		const closingMarker = `<!-- /spark-inline-chat -->`;
+
+		const finalContent = `${openingMarker}\n${closingMarker}`;
+
+		console.log('[Spark Inline Chat] Replacing markers:', {
+			startLine,
+			endLine,
+			uuid,
+			agentName,
+			markerId: this.markerId,
+		});
+
+		// Replace all lines between start and end (inclusive) with final format
+		editor.replaceRange(
+			finalContent + '\n',
+			{ line: startLine, ch: 0 },
+			{ line: endLine + 1, ch: 0 }
+		);
+
+		console.log('[Spark Inline Chat] Markers replaced successfully');
 	}
 
 	/**
@@ -308,12 +500,20 @@ export class InlineChatManager {
 		// Keep the mention removed (don't restore it)
 
 		// Reset state
+		this.resetState();
+	}
+
+	/**
+	 * Reset internal state
+	 */
+	private resetState(): void {
 		this.currentMention = null;
 		this.currentEditor = null;
 		this.originalMentionText = '';
 		this.mentionLineNumber = -1;
 		this.insertedBlankLines = 0;
 		this.markerId = '';
+		this.currentUserMessage = '';
 	}
 
 	/**
@@ -327,5 +527,25 @@ export class InlineChatManager {
 			this.app.workspace.off('editor-change', this.editorChangeHandler);
 			this.editorChangeHandler = null;
 		}
+
+		// Unregister file modification handler
+		if (this.fileModifyHandler) {
+			this.app.vault.off('modify', this.fileModifyHandler);
+			this.fileModifyHandler = null;
+		}
+
+		// Unregister agent mention complete handler
+		if (this.agentMentionCompleteHandler) {
+			document.removeEventListener(
+				'spark-agent-mention-complete',
+				this.agentMentionCompleteHandler
+			);
+			this.agentMentionCompleteHandler = null;
+		}
+
+		// Clear pending chats
+		this.pendingChats.clear();
+
+		console.log('[Spark Inline Chat] Cleaned up');
 	}
 }

@@ -700,142 +700,228 @@ div:has(>.spark-conversation-suggestion-content):hover .spark-conversation-delet
 
 /* Inline Chat Widget (Cursor-inspired design) */
 .spark-inline-chat-widget {
-	position: absolute;
-	z-index: 9999;
-	min-width: 500px;
-	max-width: 700px;
-	background: var(--background-primary);
-	border: 2px solid var(--interactive-accent);
-	border-radius: 12px;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
-	animation: sparkInlineChatSlideIn 0.15s ease-out;
+    position: absolute;
+    z-index: 9999;
+    min-width: 500px;
+    max-width: 700px;
+    background: var(--background-primary);
+    border: 2px solid var(--interactive-accent);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    animation: sparkInlineChatSlideIn 0.15s ease-out;
 }
 
 @keyframes sparkInlineChatSlideIn {
-	from {
-		opacity: 0;
-		transform: translateY(-8px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .spark-inline-chat-content {
-	padding: 12px;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .spark-inline-chat-textarea {
-	width: 100%;
-	min-height: 80px;
-	max-height: 300px;
-	padding: 12px 16px;
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	background: var(--background-primary);
-	color: var(--text-normal);
-	font-family: var(--font-text);
-	font-size: 14px;
-	line-height: 1.6;
-	resize: none;
-	outline: none;
-	transition: all 0.15s ease;
-	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    min-height: 80px;
+    max-height: 300px;
+    padding: 12px 16px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-family: var(--font-text);
+    font-size: 14px;
+    line-height: 1.6;
+    resize: none;
+    outline: none;
+    transition: all 0.15s ease;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .spark-inline-chat-textarea:focus {
-	border-color: var(--interactive-accent);
-	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05), 
-	            0 0 0 3px rgba(var(--interactive-accent-rgb), 0.1);
+    border-color: var(--interactive-accent);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05),
+        0 0 0 3px rgba(var(--interactive-accent-rgb), 0.1);
 }
 
 .spark-inline-chat-textarea::placeholder {
-	color: var(--text-faint);
+    color: var(--text-faint);
 }
 
 .spark-inline-chat-actions {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
 }
 
 .spark-inline-chat-helper {
-	font-size: 12px;
-	color: var(--text-muted);
-	flex: 1;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex: 1;
 }
 
 .spark-inline-chat-buttons {
-	display: flex;
-	gap: 8px;
-	flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .spark-inline-chat-button {
-	padding: 8px 20px;
-	border: none;
-	border-radius: 6px;
-	font-size: 13px;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.12s ease;
-	white-space: nowrap;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    white-space: nowrap;
 }
 
 .spark-inline-chat-button:active {
-	transform: scale(0.97);
+    transform: scale(0.97);
 }
 
 .spark-inline-chat-button-cancel {
-	background: var(--background-modifier-border);
-	color: var(--text-normal);
+    background: var(--background-modifier-border);
+    color: var(--text-normal);
 }
 
 .spark-inline-chat-button-cancel:hover {
-	background: var(--background-modifier-hover);
+    background: var(--background-modifier-hover);
 }
 
 .spark-inline-chat-button-send {
-	background: var(--interactive-accent);
-	color: var(--text-on-accent);
-	box-shadow: 0 2px 8px rgba(var(--interactive-accent-rgb), 0.25);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    box-shadow: 0 2px 8px rgba(var(--interactive-accent-rgb), 0.25);
 }
 
 .spark-inline-chat-button-send:hover {
-	background: var(--interactive-accent-hover);
-	box-shadow: 0 4px 12px rgba(var(--interactive-accent-rgb), 0.35);
+    background: var(--interactive-accent-hover);
+    box-shadow: 0 4px 12px rgba(var(--interactive-accent-rgb), 0.35);
 }
 
 /* Dark theme adjustments */
 .theme-dark .spark-inline-chat-widget {
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-	border-color: var(--interactive-accent);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border-color: var(--interactive-accent);
 }
 
 .theme-dark .spark-inline-chat-textarea {
-	background: var(--background-secondary);
-	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+    background: var(--background-secondary);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Light theme specific */
 .theme-light .spark-inline-chat-widget {
-	background: #ffffff;
-	border-color: var(--interactive-accent);
+    background: #ffffff;
+    border-color: var(--interactive-accent);
 }
 
 .theme-light .spark-inline-chat-textarea {
-	background: #ffffff;
+    background: #ffffff;
+}
+
+/* Processing state styles */
+.spark-inline-chat-content.processing {
+    padding: 16px;
+    gap: 16px;
+}
+
+.spark-inline-chat-message-display {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--background-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.spark-inline-chat-user-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.spark-inline-chat-user-message {
+    color: var(--text-normal);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.spark-inline-chat-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--background-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--interactive-accent);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        border-color: var(--interactive-accent);
+    }
+
+    50% {
+        opacity: 0.8;
+        border-color: rgba(var(--interactive-accent-rgb), 0.6);
+    }
+}
+
+.spark-inline-chat-agent-label {
+    font-weight: 600;
+    color: var(--interactive-accent);
+    flex-shrink: 0;
+}
+
+.spark-inline-chat-status-message {
+    color: var(--text-muted);
+    font-style: italic;
+    flex: 1;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Hide inline chat content while widget is processing */
+/* This prevents duplicate content (widget shows it, we hide it in document) */
+.spark-inline-chat-processing-active .cm-line {
+    /* Lines will be hidden programmatically when they contain our markers */
 }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-	.spark-inline-chat-widget {
-		min-width: 320px;
-		max-width: calc(100vw - 32px);
-	}
+    .spark-inline-chat-widget {
+        min-width: 320px;
+        max-width: calc(100vw - 32px);
+    }
 }

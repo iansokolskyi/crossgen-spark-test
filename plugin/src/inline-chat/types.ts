@@ -19,6 +19,11 @@ export interface DetectedAgentMention {
 }
 
 /**
+ * Widget display mode
+ */
+export type WidgetMode = 'input' | 'processing';
+
+/**
  * Inline chat widget state
  */
 export interface InlineChatWidgetState {
@@ -32,6 +37,8 @@ export interface InlineChatWidgetState {
 	visible: boolean;
 	/** User's message (as they type) */
 	message: string;
+	/** Current display mode */
+	mode: WidgetMode;
 }
 
 /**

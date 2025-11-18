@@ -27,3 +27,19 @@ export interface UpdateStatusOptions {
   commandText: string;
   status: StatusIndicator;
 }
+
+export interface WriteInlineChatResponseOptions {
+  filePath: string;
+  chatId: string;
+  startLine: number;
+  endLine: number;
+  response: string;
+}
+
+export interface UpdateInlineChatStatusOptions {
+  filePath: string;
+  chatId: string;
+  startLine: number;
+  endLine: number;
+  status: 'processing' | 'complete' | 'error';
+}

@@ -3,6 +3,7 @@
  */
 
 import type { App } from 'obsidian';
+import type { WidgetMode } from './types';
 
 export interface InlineChatWidgetOptions {
 	/** Agent name to display */
@@ -21,16 +22,72 @@ export interface InlineChatWidgetOptions {
 	parentElement?: HTMLElement;
 }
 
+/**
+ * Pool of friendly status messages for processing state
+ */
+const STATUS_MESSAGES = [
+	'thinking...',
+	'analyzing your question...',
+	'gathering context...',
+	'formulating response...',
+	'consulting knowledge base...',
+	'processing request...',
+	'working on it...',
+	'almost there...',
+	'putting thoughts together...',
+	'brewing response...',
+] as const;
+
 export class InlineChatWidget {
 	private app: App;
 	private containerEl: HTMLElement | null = null;
 	private textareaEl: HTMLTextAreaElement | null = null;
 	private sendButtonEl: HTMLButtonElement | null = null;
 	private options: InlineChatWidgetOptions;
+	private mode: WidgetMode = 'input';
+	private statusMessageEl: HTMLElement | null = null;
+	private statusIntervalId: number | null = null;
+	private currentStatusIndex: number = 0;
 
 	constructor(app: App, options: InlineChatWidgetOptions) {
 		this.app = app;
 		this.options = options;
+	}
+
+	/**
+	 * Get a random status message from the pool
+	 */
+	private getRandomStatusMessage(): string {
+		return STATUS_MESSAGES[Math.floor(Math.random() * STATUS_MESSAGES.length)];
+	}
+
+	/**
+	 * Rotate through status messages to keep it engaging
+	 */
+	private startStatusRotation(): void {
+		// Clear any existing rotation
+		this.stopStatusRotation();
+
+		// Pick initial random message
+		this.currentStatusIndex = Math.floor(Math.random() * STATUS_MESSAGES.length);
+
+		// Update every 3 seconds
+		this.statusIntervalId = window.setInterval(() => {
+			this.currentStatusIndex = (this.currentStatusIndex + 1) % STATUS_MESSAGES.length;
+			if (this.statusMessageEl) {
+				this.statusMessageEl.setText(STATUS_MESSAGES[this.currentStatusIndex]);
+			}
+		}, 3000);
+	}
+
+	/**
+	 * Stop status message rotation
+	 */
+	private stopStatusRotation(): void {
+		if (this.statusIntervalId !== null) {
+			window.clearInterval(this.statusIntervalId);
+			this.statusIntervalId = null;
+		}
 	}
 
 	/**
@@ -67,12 +124,50 @@ export class InlineChatWidget {
 	 * Hide the widget
 	 */
 	hide(): void {
+		this.stopStatusRotation();
 		if (this.containerEl) {
 			this.containerEl.remove();
 			this.containerEl = null;
 			this.textareaEl = null;
 			this.sendButtonEl = null;
+			this.statusMessageEl = null;
 		}
+	}
+
+	/**
+	 * Transform widget to processing state
+	 * Shows user message with friendly status indicator
+	 */
+	transformToProcessing(userMessage: string): void {
+		if (!this.containerEl) {
+			return;
+		}
+
+		this.mode = 'processing';
+
+		// Clear current content
+		this.containerEl.empty();
+
+		// Recreate with processing UI
+		const mainContent = this.containerEl.createDiv('spark-inline-chat-content processing');
+
+		// Show user message (read-only)
+		const messageDisplay = mainContent.createDiv('spark-inline-chat-message-display');
+		messageDisplay.createDiv({ cls: 'spark-inline-chat-user-label', text: 'You:' });
+		messageDisplay.createDiv({ cls: 'spark-inline-chat-user-message', text: userMessage });
+
+		// Show status message
+		const statusRow = mainContent.createDiv('spark-inline-chat-status');
+		statusRow.createDiv({
+			cls: 'spark-inline-chat-agent-label',
+			text: `@${this.options.agentName}`,
+		});
+
+		this.statusMessageEl = statusRow.createDiv({ cls: 'spark-inline-chat-status-message' });
+		this.statusMessageEl.setText(this.getRandomStatusMessage());
+
+		// Start rotating status messages
+		this.startStatusRotation();
 	}
 
 	/**
@@ -104,12 +199,12 @@ export class InlineChatWidget {
 			},
 		});
 
-		// Handle Enter key (Cmd/Ctrl+Enter to send, Shift+Enter for newline)
+		// Handle Enter key (Enter to send, Shift+Enter for newline)
 		this.textareaEl.addEventListener('keydown', (e: KeyboardEvent) => {
-			if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+			if (e.key === 'Enter' && !e.shiftKey) {
 				e.preventDefault();
 				e.stopPropagation();
-				console.log('[InlineChatWidget] Cmd+Enter pressed, sending...');
+				console.log('[InlineChatWidget] Enter pressed, sending...');
 				this.handleSend();
 			} else if (e.key === 'Escape') {
 				e.preventDefault();
@@ -117,6 +212,7 @@ export class InlineChatWidget {
 				console.log('[InlineChatWidget] Escape pressed, cancelling...');
 				this.options.onCancel();
 			}
+			// Shift+Enter is allowed through for newlines (default textarea behavior)
 		});
 
 		// Auto-resize textarea as user types
@@ -129,7 +225,7 @@ export class InlineChatWidget {
 
 		// Helper text
 		const helperText = actionsRow.createDiv('spark-inline-chat-helper');
-		helperText.setText('⌘↵ to send, Esc to cancel');
+		helperText.setText('↵ to send, ⇧↵ for newline, Esc to cancel');
 
 		// Buttons container
 		const buttonsContainer = actionsRow.createDiv('spark-inline-chat-buttons');

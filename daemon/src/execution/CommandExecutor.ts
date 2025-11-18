@@ -3,7 +3,7 @@
  * Orchestrates command execution: context loading, prompt building, AI calls, result writing
  */
 
-import type { ParsedCommand } from '../types/parser.js';
+import type { ParsedCommand, ParsedInlineChat } from '../types/parser.js';
 import type { SparkConfig } from '../types/config.js';
 import type { ProviderCompletionOptions, ProviderContextFile } from '../types/provider.js';
 import type { ContextLoader } from '../context/ContextLoader.js';
@@ -185,6 +185,50 @@ export class CommandExecutor {
   }
 
   /**
+   * Build system prompt specifically for inline chat
+   * Different from regular commands - focuses on direct content generation
+   */
+  private buildInlineChatSystemPrompt(): string {
+    const sections: string[] = [];
+
+    sections.push('INLINE CHAT MODE:');
+    sections.push(
+      'You are responding to an inline request. Your response will be inserted directly into the document at the location where the user asked the question.'
+    );
+    sections.push('');
+
+    sections.push('CRITICAL INSTRUCTIONS:');
+    sections.push(
+      '1. DO NOT use file operation tools (Read, Write, Edit). The file context has already been provided to you.'
+    );
+    sections.push(
+      '2. DO NOT write meta-commentary like "I\'ve added..." or "Here is...". Respond with direct content only.'
+    );
+    sections.push(
+      '3. Your response should be the actual content that belongs in the document, not a description of what you did.'
+    );
+    sections.push('4. Be concise and context-aware based on the surrounding document content.');
+    sections.push('');
+
+    sections.push('EXAMPLES:');
+    sections.push('❌ Bad: "I\'ve added a paragraph about burn rate. Here it is: Burn rate is..."');
+    sections.push('✅ Good: "Burn rate is the monthly rate at which..."');
+    sections.push('');
+    sections.push(
+      '❌ Bad: "I\'ll help you with that. Let me create a summary. The summary is: ..."'
+    );
+    sections.push('✅ Good: "Q4 revenue exceeded projections by 15%..."');
+    sections.push('');
+
+    sections.push('When referencing files and folders:');
+    sections.push('- Reference files by basename only: @filename (not @folder/filename.md)');
+    sections.push('- Reference folders with trailing slash: @folder/');
+    sections.push('- Examples: @review-q4-finances, @tasks/, @invoices/');
+
+    return sections.join('\n');
+  }
+
+  /**
    * Build context files array from loaded context
    */
   private buildContextFiles(context: {
@@ -236,5 +280,145 @@ export class CommandExecutor {
       return false;
     }
     return true;
+  }
+
+  /**
+   * Execute inline chat - similar to command execution but updates marker instead
+   */
+  async executeInlineChat(chat: ParsedInlineChat, filePath: string): Promise<void> {
+    this.logger.info('Executing inline chat', {
+      id: chat.id,
+      file: filePath,
+      userMessage: chat.userMessage.substring(0, 100),
+    });
+
+    try {
+      // Execute AI call using user message as prompt
+      // No status update to "processing" - it causes feedback loops
+      const aiResponse = await this.executeAIForInlineChat(chat, filePath);
+
+      // Write AI response to file (replaces entire chat block with clean response)
+      await this.resultWriter.writeInlineChatResponse({
+        filePath,
+        chatId: chat.id,
+        startLine: chat.startLine,
+        endLine: chat.endLine,
+        response: aiResponse,
+      });
+
+      this.logger.info('Inline chat response written to file', {
+        filePath,
+        chatId: chat.id,
+        responseLength: aiResponse.length,
+      });
+    } catch (error) {
+      this.logger.error('Inline chat execution failed', error);
+
+      // On error, replace chat block with error message (no markers)
+      await this.resultWriter.writeInlineChatResponse({
+        filePath,
+        chatId: chat.id,
+        startLine: chat.startLine,
+        endLine: chat.endLine,
+        response: `*Error processing inline chat: ${error instanceof Error ? error.message : String(error)}*`,
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Execute AI for inline chat - similar to executeAI but with inline-specific system prompt
+   */
+  private async executeAIForInlineChat(chat: ParsedInlineChat, filePath: string): Promise<string> {
+    this.logger.debug('Executing AI for inline chat', {
+      chatId: chat.id,
+      file: filePath,
+      userMessage: chat.userMessage,
+      mentionsCount: chat.mentions?.length || 0,
+      mentions: chat.mentions?.map((m) => ({ type: m.type, value: m.value })),
+    });
+
+    // Load context including mentioned files and nearby files
+    // Mentions were already parsed by InlineChatDetector
+    const context = await this.contextLoader.load(filePath, chat.mentions || []);
+
+    this.logger.debug('Context loaded for inline chat', {
+      mentionedFiles: context.mentionedFiles.map((f) => f.path),
+      nearbyFiles: context.nearbyFiles.map((f) => ({ path: f.path, distance: f.distance })),
+      hasAgent: !!context.agent,
+      agentPath: context.agent?.path,
+      agentPersonaLength: context.agent?.persona?.length,
+    });
+
+    // Get appropriate AI provider (with agent-specific overrides if applicable)
+    const provider = this.providerFactory.createWithAgentConfig(
+      this.config.ai,
+      context.agent?.aiConfig
+    );
+
+    // Build context files for provider
+    const contextFiles: ProviderContextFile[] = [];
+
+    // Add current file first (highest priority)
+    contextFiles.push({
+      path: context.currentFile.path,
+      content: context.currentFile.content,
+      priority: 'high',
+      note: 'Current file context - your response will be inserted inline',
+    });
+
+    // Add mentioned files
+    for (const file of context.mentionedFiles) {
+      contextFiles.push({
+        path: file.path,
+        content: file.content,
+        priority: 'high',
+        note: 'Mentioned file',
+      });
+    }
+
+    // Add nearby files (use summary instead of full content)
+    for (const file of context.nearbyFiles) {
+      contextFiles.push({
+        path: file.path,
+        content: file.summary,
+        priority: 'low',
+        note: `Nearby file (distance: ${file.distance})`,
+      });
+    }
+
+    // Build provider completion options with inline chat specific system prompt
+    // Include agent persona in the system prompt
+    let systemPrompt = this.buildInlineChatSystemPrompt();
+    if (context.agent?.persona) {
+      systemPrompt = `${context.agent.persona}\n\n${systemPrompt}`;
+    }
+
+    const providerOptions: ProviderCompletionOptions = {
+      prompt: chat.userMessage,
+      systemPrompt,
+      context: {
+        files: contextFiles,
+      },
+    };
+
+    this.logger.debug('Calling AI provider for inline chat', {
+      provider: provider.name,
+      promptLength: providerOptions.prompt.length,
+      contextFiles: contextFiles.length,
+      hasAgentPersona: !!context.agent?.persona,
+    });
+
+    // Call AI
+    const response = await provider.complete(providerOptions);
+
+    this.logger.debug('AI response received for inline chat', {
+      responseLength: response.content.length,
+      inputTokens: response.usage.inputTokens,
+      outputTokens: response.usage.outputTokens,
+    });
+
+    return response.content;
   }
 }

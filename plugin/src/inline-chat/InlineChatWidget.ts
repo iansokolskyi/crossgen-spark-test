@@ -26,16 +26,16 @@ export interface InlineChatWidgetOptions {
  * Pool of friendly status messages for processing state
  */
 const STATUS_MESSAGES = [
-	'thinking...',
-	'analyzing your question...',
-	'gathering context...',
-	'formulating response...',
-	'consulting knowledge base...',
-	'processing request...',
-	'working on it...',
-	'almost there...',
-	'putting thoughts together...',
-	'brewing response...',
+	'thinking',
+	'analyzing your question',
+	'gathering context',
+	'formulating response',
+	'consulting knowledge base',
+	'processing request',
+	'working on it',
+	'almost there',
+	'putting thoughts together',
+	'brewing response',
 ] as const;
 
 export class InlineChatWidget {
@@ -71,11 +71,17 @@ export class InlineChatWidget {
 		// Pick initial random message
 		this.currentStatusIndex = Math.floor(Math.random() * STATUS_MESSAGES.length);
 
+		// Capitalize agent name for display
+		const capitalizedAgentName =
+			this.options.agentName.charAt(0).toUpperCase() + this.options.agentName.slice(1);
+
 		// Update every 3 seconds
 		this.statusIntervalId = window.setInterval(() => {
 			this.currentStatusIndex = (this.currentStatusIndex + 1) % STATUS_MESSAGES.length;
 			if (this.statusMessageEl) {
-				this.statusMessageEl.setText(STATUS_MESSAGES[this.currentStatusIndex]);
+				this.statusMessageEl.setText(
+					`${capitalizedAgentName} is ${STATUS_MESSAGES[this.currentStatusIndex]}`
+				);
 			}
 		}, 3000);
 	}
@@ -136,7 +142,7 @@ export class InlineChatWidget {
 
 	/**
 	 * Transform widget to processing state
-	 * Shows user message with friendly status indicator
+	 * Shows user message and simple loading indicator
 	 */
 	transformToProcessing(userMessage: string): void {
 		if (!this.containerEl) {
@@ -151,20 +157,22 @@ export class InlineChatWidget {
 		// Recreate with processing UI
 		const mainContent = this.containerEl.createDiv('spark-inline-chat-content processing');
 
-		// Show user message (read-only)
-		const messageDisplay = mainContent.createDiv('spark-inline-chat-message-display');
-		messageDisplay.createDiv({ cls: 'spark-inline-chat-user-label', text: 'You:' });
-		messageDisplay.createDiv({ cls: 'spark-inline-chat-user-message', text: userMessage });
+		// Show user message (simple, no label)
+		const userMessageEl = mainContent.createDiv('spark-inline-chat-user-message');
+		userMessageEl.setText(userMessage);
 
-		// Show status message
+		// Show simple status (matching main chat loading state)
 		const statusRow = mainContent.createDiv('spark-inline-chat-status');
-		statusRow.createDiv({
-			cls: 'spark-inline-chat-agent-label',
-			text: `@${this.options.agentName}`,
-		});
 
-		this.statusMessageEl = statusRow.createDiv({ cls: 'spark-inline-chat-status-message' });
-		this.statusMessageEl.setText(this.getRandomStatusMessage());
+		// Capitalize agent name
+		const capitalizedAgentName =
+			this.options.agentName.charAt(0).toUpperCase() + this.options.agentName.slice(1);
+
+		this.statusMessageEl = statusRow.createEl('span', { cls: 'spark-inline-chat-status-message' });
+		this.statusMessageEl.setText(`${capitalizedAgentName} is typing`);
+
+		// Add jumping dots (matching main chat animation)
+		statusRow.createEl('span', { cls: 'spark-jumping-dots' });
 
 		// Start rotating status messages
 		this.startStatusRotation();
@@ -175,6 +183,16 @@ export class InlineChatWidget {
 	 */
 	isVisible(): boolean {
 		return this.containerEl !== null;
+	}
+
+	/**
+	 * Get the current height of the widget in pixels
+	 */
+	getHeight(): number {
+		if (!this.containerEl) {
+			return 0;
+		}
+		return this.containerEl.offsetHeight;
 	}
 
 	/**
@@ -190,14 +208,26 @@ export class InlineChatWidget {
 		// Main content area with textarea and buttons in one container
 		const mainContent = container.createDiv('spark-inline-chat-content');
 
-		// Textarea with agent mention pre-populated
-		this.textareaEl = mainContent.createEl('textarea', {
-			cls: 'spark-inline-chat-textarea',
+		// Close button at top right
+		const closeButton = mainContent.createEl('button', {
+			cls: 'spark-inline-chat-close-btn',
 			attr: {
-				placeholder: `Ask @${this.options.agentName}...`,
-				rows: '1',
+				'aria-label': 'Close',
 			},
 		});
+		closeButton.innerHTML = '×';
+		closeButton.addEventListener('click', (e: MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			console.log('[InlineChatWidget] Close button clicked');
+			this.options.onCancel();
+		});
+
+		// Textarea with agent mention pre-populated
+		this.textareaEl = document.createElement('textarea');
+		this.textareaEl.addClass('spark-inline-chat-textarea');
+		this.textareaEl.setAttribute('placeholder', `Ask @${this.options.agentName}...`);
+		this.textareaEl.setAttribute('rows', '1');
 
 		// Handle Enter key (Enter to send, Shift+Enter for newline)
 		this.textareaEl.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -218,39 +248,34 @@ export class InlineChatWidget {
 		// Auto-resize textarea as user types
 		this.textareaEl.addEventListener('input', () => {
 			this.autoResizeTextarea();
+			this.updateSendButtonState();
 		});
 
-		// Action buttons row
-		const actionsRow = mainContent.createDiv('spark-inline-chat-actions');
+		// Input wrapper with textarea only
+		const inputWrapper = mainContent.createDiv('spark-inline-chat-input-wrapper');
+		inputWrapper.appendChild(this.textareaEl);
 
-		// Helper text
-		const helperText = actionsRow.createDiv('spark-inline-chat-helper');
+		// Helper text below input
+		const helperText = mainContent.createDiv('spark-inline-chat-helper');
 		helperText.setText('↵ to send, ⇧↵ for newline, Esc to cancel');
 
-		// Buttons container
-		const buttonsContainer = actionsRow.createDiv('spark-inline-chat-buttons');
-
-		const cancelButton = buttonsContainer.createEl('button', {
-			cls: 'spark-inline-chat-button spark-inline-chat-button-cancel',
-			text: 'Cancel',
+		// Send button at bottom right corner of widget
+		this.sendButtonEl = mainContent.createEl('button', {
+			cls: 'spark-inline-chat-send-btn',
+			attr: {
+				'aria-label': 'Send message',
+			},
 		});
-		cancelButton.addEventListener('click', (e: MouseEvent) => {
-			e.preventDefault();
-			e.stopPropagation();
-			console.log('[InlineChatWidget] Cancel button clicked');
-			this.options.onCancel();
-		});
-
-		this.sendButtonEl = buttonsContainer.createEl('button', {
-			cls: 'spark-inline-chat-button spark-inline-chat-button-send',
-			text: 'Send',
-		});
+		this.sendButtonEl.innerHTML = '↑';
 		this.sendButtonEl.addEventListener('click', (e: MouseEvent) => {
 			e.preventDefault();
 			e.stopPropagation();
 			console.log('[InlineChatWidget] Send button clicked');
 			this.handleSend();
 		});
+
+		// Set initial button state
+		this.updateSendButtonState();
 
 		// Click outside to close
 		window.setTimeout(() => {
@@ -301,6 +326,18 @@ export class InlineChatWidget {
 		// Set to scroll height (content height)
 		const newHeight = Math.min(this.textareaEl.scrollHeight, 200); // Max 200px
 		this.textareaEl.style.height = `${newHeight}px`;
+	}
+
+	/**
+	 * Update send button disabled state based on input
+	 */
+	private updateSendButtonState(): void {
+		if (!this.sendButtonEl || !this.textareaEl) {
+			return;
+		}
+
+		const isEmpty = this.textareaEl.value.trim().length === 0;
+		this.sendButtonEl.disabled = isEmpty;
 	}
 
 	/**

@@ -254,7 +254,7 @@ describe('InlineChatManager', () => {
                 expect(lines[0]).toMatch(/^<!-- spark-inline-chat:pending:[a-f0-9-]+:betty:test message -->$/);
             });
 
-            it('should write user message on second line', () => {
+            it('should write closing marker on last line', () => {
                 manager.initialize();
 
                 const markerId = 'spark-inline-1234-abc';
@@ -269,12 +269,13 @@ describe('InlineChatManager', () => {
                 (manager as any).handleSend('How do I calculate burn rate?');
 
                 const writtenContent = (mockEditor.replaceRange as jest.Mock).mock.calls[0][0];
-                const lines = writtenContent.split('\n');
+                const lines = writtenContent.trim().split('\n');
 
-                expect(lines[1]).toBe('<!-- /spark-inline-chat -->');
+                // Last line should be closing marker
+                expect(lines[lines.length - 1]).toBe('<!-- /spark-inline-chat -->');
             });
 
-            it('should only have 2 lines in written content', () => {
+            it('should add newlines between markers for widget space', () => {
                 manager.initialize();
 
                 const markerId = 'spark-inline-1234-abc';
@@ -291,10 +292,11 @@ describe('InlineChatManager', () => {
                 const writtenContent = (mockEditor.replaceRange as jest.Mock).mock.calls[0][0];
                 const lines = writtenContent.trim().split('\n');
 
-                expect(lines).toHaveLength(2);
+                // Should have at least opening marker, some blank lines, and closing marker
+                expect(lines.length).toBeGreaterThanOrEqual(3);
             });
 
-            it('should have exactly 3 content lines (marker, message, closing)', () => {
+            it('should have opening and closing markers with blank lines between', () => {
                 manager.initialize();
 
                 const markerId = 'spark-inline-1234-abc';
@@ -311,7 +313,14 @@ describe('InlineChatManager', () => {
                 const writtenContent = (mockEditor.replaceRange as jest.Mock).mock.calls[0][0];
                 const lines = writtenContent.trim().split('\n');
 
-                expect(lines).toHaveLength(2);
+                // First line should be opening marker
+                expect(lines[0]).toContain('spark-inline-chat:pending:');
+                // Last line should be closing marker
+                expect(lines[lines.length - 1]).toBe('<!-- /spark-inline-chat -->');
+                // Lines in between should be empty (for widget space)
+                for (let i = 1; i < lines.length - 1; i++) {
+                    expect(lines[i]).toBe('');
+                }
             });
         });
 

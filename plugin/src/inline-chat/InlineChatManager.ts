@@ -401,13 +401,25 @@ export class InlineChatManager {
 		const cleanMessage = message.replace(/^@\w+\s*/, '').trim();
 		this.currentUserMessage = cleanMessage;
 
-		// Step 2: Replace positioning markers with final daemon-readable format
-		this.replacMarkersWithFinalFormat(this.currentEditor, message, uuid);
-
-		// Transform widget to processing state (instead of hiding)
-		// The marker is now invisible (HTML comment), widget shows content visually
+		// Transform widget to processing state first (so we can measure its height)
 		if (this.activeWidget) {
 			this.activeWidget.transformToProcessing(cleanMessage);
+
+			// Wait for DOM to update, then calculate needed newlines
+			window.setTimeout(() => {
+				if (this.activeWidget && this.currentEditor) {
+					// Get widget height and calculate lines needed
+					const widgetHeight = this.activeWidget.getHeight();
+					// Assume ~22px per line in editor (typical line height)
+					const linesNeeded = Math.ceil(widgetHeight / 22);
+
+					// Replace markers with calculated newlines
+					this.replacMarkersWithFinalFormat(this.currentEditor, message, uuid, linesNeeded);
+				}
+			}, 10);
+		} else {
+			// Fallback if no widget (shouldn't happen)
+			this.replacMarkersWithFinalFormat(this.currentEditor, message, uuid);
 		}
 
 		// Show notification
@@ -421,8 +433,14 @@ export class InlineChatManager {
 	 * Replace positioning markers with final daemon-readable format
 	 * Converts: <!-- spark-inline-{id}-start --> ... <!-- spark-inline-{id}-end -->
 	 * To: <!-- spark-inline-chat:pending:uuid --> User: message <!-- /spark-inline-chat -->
+	 * Plus empty lines to make space for the widget
 	 */
-	private replacMarkersWithFinalFormat(editor: Editor, userMessage: string, uuid: string): void {
+	private replacMarkersWithFinalFormat(
+		editor: Editor,
+		userMessage: string,
+		uuid: string,
+		linesNeeded: number = 3
+	): void {
 		if (!this.markerId) {
 			console.warn('[Spark Inline Chat] No marker ID to replace');
 			return;
@@ -460,7 +478,9 @@ export class InlineChatManager {
 		const openingMarker = `<!-- spark-inline-chat:pending:${uuid}:${agentName}:${escapedMessage} -->`;
 		const closingMarker = `<!-- /spark-inline-chat -->`;
 
-		const finalContent = `${openingMarker}\n${closingMarker}`;
+		// Add newlines to make space for the widget (so it doesn't overlap text)
+		const newlines = '\n'.repeat(Math.max(linesNeeded - 1, 2)); // At least 2 lines
+		const finalContent = `${openingMarker}\n${newlines}${closingMarker}`;
 
 		console.log('[Spark Inline Chat] Replacing markers:', {
 			startLine,
@@ -468,6 +488,7 @@ export class InlineChatManager {
 			uuid,
 			agentName,
 			markerId: this.markerId,
+			linesNeeded,
 		});
 
 		// Replace all lines between start and end (inclusive) with final format

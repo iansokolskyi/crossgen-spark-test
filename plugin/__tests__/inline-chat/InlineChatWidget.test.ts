@@ -144,7 +144,7 @@ describe('InlineChatWidget', () => {
             expect(textarea).not.toBeNull();
         });
 
-        it('should create send and cancel buttons', () => {
+        it('should create send button', () => {
             const widget = new InlineChatWidget(mockApp, {
                 agentName: 'alice',
                 onSend: jest.fn(),
@@ -156,11 +156,28 @@ describe('InlineChatWidget', () => {
 
             widget.show();
 
-            const sendButton = parentElement.querySelector('.spark-inline-chat-button-send');
-            const cancelButton = parentElement.querySelector('.spark-inline-chat-button-cancel');
+            const sendButton = parentElement.querySelector('.spark-inline-chat-send-btn');
 
             expect(sendButton).not.toBeNull();
-            expect(cancelButton).not.toBeNull();
+            expect(sendButton?.innerHTML).toBe('↑');
+        });
+
+        it('should create close button', () => {
+            const widget = new InlineChatWidget(mockApp, {
+                agentName: 'alice',
+                onSend: jest.fn(),
+                onCancel: jest.fn(),
+                top: 100,
+                left: 50,
+                parentElement,
+            });
+
+            widget.show();
+
+            const closeButton = parentElement.querySelector('.spark-inline-chat-close-btn');
+
+            expect(closeButton).not.toBeNull();
+            expect(closeButton?.innerHTML).toBe('×');
         });
     });
 
@@ -181,15 +198,17 @@ describe('InlineChatWidget', () => {
             widget.show();
 
             const textarea = parentElement.querySelector('.spark-inline-chat-textarea') as HTMLTextAreaElement;
-            const sendButton = parentElement.querySelector('.spark-inline-chat-button-send') as HTMLButtonElement;
+            const sendButton = parentElement.querySelector('.spark-inline-chat-send-btn') as HTMLButtonElement;
 
             textarea.value = 'test message';
+            // Trigger input event to enable button
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
             sendButton.click();
 
             expect(onSend).toHaveBeenCalledWith('test message');
         });
 
-        it('should call onCancel when cancel button clicked', () => {
+        it('should disable send button when input is empty', () => {
             const onSend = jest.fn();
             const onCancel = jest.fn();
 
@@ -204,8 +223,29 @@ describe('InlineChatWidget', () => {
 
             widget.show();
 
-            const cancelButton = parentElement.querySelector('.spark-inline-chat-button-cancel') as HTMLButtonElement;
-            cancelButton.click();
+            const sendButton = parentElement.querySelector('.spark-inline-chat-send-btn') as HTMLButtonElement;
+
+            // Button should be disabled initially (no input)
+            expect(sendButton.disabled).toBe(true);
+        });
+
+        it('should call onCancel when close button clicked', () => {
+            const onSend = jest.fn();
+            const onCancel = jest.fn();
+
+            const widget = new InlineChatWidget(mockApp, {
+                agentName: 'alice',
+                onSend,
+                onCancel,
+                top: 100,
+                left: 50,
+                parentElement,
+            });
+
+            widget.show();
+
+            const closeButton = parentElement.querySelector('.spark-inline-chat-close-btn') as HTMLButtonElement;
+            closeButton.click();
 
             expect(onCancel).toHaveBeenCalled();
         });
@@ -297,12 +337,15 @@ describe('InlineChatWidget', () => {
             widget.show();
 
             const textarea = parentElement.querySelector('.spark-inline-chat-textarea') as HTMLTextAreaElement;
-            const sendButton = parentElement.querySelector('.spark-inline-chat-button-send') as HTMLButtonElement;
+            const sendButton = parentElement.querySelector('.spark-inline-chat-send-btn') as HTMLButtonElement;
 
             textarea.value = '   '; // Only whitespace
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
             sendButton.click();
 
             expect(onSend).not.toHaveBeenCalled();
+            // Button should remain disabled for whitespace-only input
+            expect(sendButton.disabled).toBe(true);
         });
     });
 
@@ -322,9 +365,11 @@ describe('InlineChatWidget', () => {
 
             const userMessage = parentElement.querySelector('.spark-inline-chat-user-message');
             const statusMessage = parentElement.querySelector('.spark-inline-chat-status-message');
+            const jumpingDots = parentElement.querySelector('.spark-jumping-dots');
 
             expect(userMessage?.textContent).toBe('What is burn rate?');
-            expect(statusMessage).not.toBeNull();
+            expect(statusMessage?.textContent).toBe('Alice is typing');
+            expect(jumpingDots).not.toBeNull();
         });
 
         it('should show status messages in processing state', () => {

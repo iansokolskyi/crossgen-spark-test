@@ -1,0 +1,151 @@
+import { App, Editor, TFile } from 'obsidian';
+import {
+	AGENT_PREFIX_REGEX,
+	NEWLINE_REGEX,
+	TEMP_MARKER_BLOCK_REGEX,
+	DAEMON_MARKER_BLOCK_REGEX,
+} from '../constants';
+
+export class ResultWriter {
+	private static instance: ResultWriter;
+	private app: App;
+
+	private constructor(app: App) {
+		this.app = app;
+	}
+
+	public static getInstance(app?: App): ResultWriter {
+		if (!ResultWriter.instance) {
+			if (!app) {
+				throw new Error('ResultWriter must be initialized with an App instance first.');
+			}
+			ResultWriter.instance = new ResultWriter(app);
+		}
+		return ResultWriter.instance;
+	}
+
+	/**
+	 * Replace positioning markers with final daemon-readable format
+	 */
+	public replaceMarkersWithFinalFormat(
+		editor: Editor,
+		markerId: string,
+		agentName: string,
+		userMessage: string,
+		uuid: string,
+		linesNeeded: number = 3
+	): void {
+		if (!markerId) {
+			console.warn('[ResultWriter] No marker ID to replace');
+			return;
+		}
+
+		// Find the start and end marker lines
+		const lineCount = editor.lineCount();
+		let startLine = -1;
+		let endLine = -1;
+
+		for (let i = 0; i < lineCount; i++) {
+			const line = editor.getLine(i);
+			if (line.includes(`${markerId}-start`)) {
+				startLine = i;
+			} else if (line.includes(`${markerId}-end`)) {
+				endLine = i;
+				break;
+			}
+		}
+
+		if (startLine === -1 || endLine === -1) {
+			console.warn('[ResultWriter] Could not find markers to replace');
+			return;
+		}
+
+		// Extract user message (remove @agent prefix if present)
+		const cleanMessage = userMessage.replace(AGENT_PREFIX_REGEX, '').trim();
+
+		// Build final marker format
+		// Format: <!-- spark-inline-chat:pending:uuid:agentName:message -->
+		const escapedMessage = cleanMessage.replace(NEWLINE_REGEX, '\\n');
+		const openingMarker = `<!-- spark-inline-chat:pending:${uuid}:${agentName}:${escapedMessage} -->`;
+		const closingMarker = `<!-- /spark-inline-chat -->`;
+
+		// Add newlines to make space for the widget
+		const newlines = '\n'.repeat(Math.max(linesNeeded - 1, 2));
+		const finalContent = `${openingMarker}\n${newlines}${closingMarker}`;
+
+		console.log('[ResultWriter] Replacing markers:', {
+			startLine,
+			endLine,
+			uuid,
+			agentName,
+			markerId,
+			linesNeeded,
+		});
+
+		// Replace all lines between start and end (inclusive) with final format
+		editor.replaceRange(
+			finalContent + '\n',
+			{ line: startLine, ch: 0 },
+			{ line: endLine + 1, ch: 0 }
+		);
+
+		console.log('[ResultWriter] Markers replaced successfully');
+	}
+
+	/**
+	 * Remove all inline chat markers from a file
+	 */
+	public async cleanupMarkersFromFile(filePath: string): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!file || !(file instanceof TFile)) {
+			return;
+		}
+
+		try {
+			const content = await this.app.vault.read(file);
+			let modifiedContent = content;
+
+			// Pattern 1: Remove temporary positioning markers
+			modifiedContent = modifiedContent.replace(TEMP_MARKER_BLOCK_REGEX, '');
+
+			// Pattern 2: Remove daemon format markers
+			modifiedContent = modifiedContent.replace(DAEMON_MARKER_BLOCK_REGEX, '');
+
+			if (modifiedContent !== content) {
+				await this.app.vault.modify(file, modifiedContent);
+			}
+		} catch (error) {
+			console.error('[ResultWriter] Error cleaning up markers:', error);
+		}
+	}
+
+	/**
+	 * Clean up markers from editor (removes all lines between and including markers)
+	 */
+	public cleanupMarkersFromEditor(editor: Editor, markerId: string): void {
+		if (!markerId) return;
+
+		const lineCount = editor.lineCount();
+		let startLine = -1;
+		let endLine = -1;
+
+		for (let i = 0; i < lineCount; i++) {
+			const line = editor.getLine(i);
+			if (line.includes(`${markerId}-start`)) {
+				startLine = i;
+			} else if (line.includes(`${markerId}-end`)) {
+				endLine = i;
+				break;
+			}
+		}
+
+		if (startLine === -1 || endLine === -1) {
+			return;
+		}
+
+		// Remove from end to start to avoid line number shifting
+		for (let i = endLine; i >= startLine; i--) {
+			editor.replaceRange('', { line: i, ch: 0 }, { line: i + 1, ch: 0 });
+		}
+	}
+}

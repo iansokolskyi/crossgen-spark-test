@@ -1,10 +1,10 @@
 import { App } from 'obsidian';
-import { MentionDecorator } from '../command-palette/MentionDecorator';
-import { handleMentionClick } from '../command-palette/MentionDecorator';
+import type { MentionDecorator } from './MentionDecorator';
 import { PaletteView } from '../command-palette/PaletteView';
 import { ItemLoader } from '../command-palette/ItemLoader';
 import { FuzzyMatcher } from '../command-palette/FuzzyMatcher';
 import { PaletteItem } from '../types/command-palette';
+import { ResourceService } from '../services/ResourceService';
 
 /**
  * Manages mentions and commands in the chat input
@@ -19,6 +19,7 @@ export class ChatMentionHandler {
 	private paletteView: PaletteView;
 	private itemLoader: ItemLoader;
 	private fuzzyMatcher: FuzzyMatcher;
+	private resourceService: ResourceService;
 	private currentTrigger: { char: string; position: number } | null = null;
 	private chatContainer: HTMLElement | null = null;
 
@@ -33,6 +34,7 @@ export class ChatMentionHandler {
 		this.paletteView = new PaletteView(app);
 		this.itemLoader = new ItemLoader(app);
 		this.fuzzyMatcher = new FuzzyMatcher();
+		this.resourceService = ResourceService.getInstance(app);
 	}
 
 	/**
@@ -466,7 +468,7 @@ export class ChatMentionHandler {
 		let match;
 		while ((match = mentionRegex.exec(text)) !== null) {
 			const mention = match[0];
-			const type = this.validateMention(mention);
+			const type = this.resourceService.validateMentionType(mention);
 			tokens.push({
 				text: mention,
 				start: match.index,
@@ -479,7 +481,7 @@ export class ChatMentionHandler {
 		const commandRegex = /(?:^|\s)(\/[\w-]+)/g;
 		while ((match = commandRegex.exec(text)) !== null) {
 			const command = match[1];
-			const type = this.validateCommand(command);
+			const type = this.resourceService.validateCommandType(command);
 			tokens.push({
 				text: command,
 				start: match.index + (match[0].length - command.length),
@@ -491,47 +493,6 @@ export class ChatMentionHandler {
 		// Sort by start position
 		tokens.sort((a, b) => a.start - b.start);
 		return tokens;
-	}
-
-	/**
-	 * Validate mention and determine type
-	 */
-	private validateMention(mention: string): string | null {
-		const isFolder = mention.endsWith('/');
-		const basename = mention.substring(1);
-
-		if (isFolder) {
-			const folderPath = basename;
-			const folderExists = this.app.vault
-				.getMarkdownFiles()
-				.some(f => f.path.startsWith(folderPath));
-			return folderExists ? 'folder' : null;
-		} else {
-			const fileExists = this.app.vault.getMarkdownFiles().some(f => f.basename === basename);
-			if (fileExists) {
-				return 'file';
-			}
-
-			// Check if it's an agent (synchronous check using cached data)
-			// Note: MentionDecorator loads agents async, so we access internal state
-			// @ts-expect-error - Accessing private field
-			const validAgents = this.mentionDecorator.validAgents as Set<string>;
-			if (validAgents && validAgents.has(basename)) {
-				return 'agent';
-			}
-		}
-
-		return null;
-	}
-
-	/**
-	 * Validate command
-	 */
-	private validateCommand(command: string): string | null {
-		const commandName = command.substring(1);
-		// @ts-expect-error - Accessing private field
-		const validCommands = this.mentionDecorator.validCommands as Set<string>;
-		return validCommands && validCommands.has(commandName) ? 'command' : null;
 	}
 
 	/**
@@ -748,8 +709,8 @@ export class ChatMentionHandler {
 	 * Handle clicks on mentions
 	 */
 	private handleClick(event: MouseEvent): void {
-		// Use the existing mention click handler from command palette
-		handleMentionClick(this.app, event, this.plugin);
+		// Handle click on decorated mentions
+		this.mentionDecorator.handleMentionClick(event);
 	}
 
 	/**

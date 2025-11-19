@@ -1,6 +1,6 @@
 // Spark Assistant Types
 import { Plugin } from 'obsidian';
-import { MentionDecorator } from '../command-palette/MentionDecorator';
+import { MentionDecorator } from '../mention/MentionDecorator';
 import { ChatManager } from '../chat/ChatManager';
 
 export interface SparkSettings {

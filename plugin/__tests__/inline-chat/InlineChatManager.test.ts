@@ -1,6 +1,7 @@
 import { InlineChatManager } from '../../src/inline-chat/InlineChatManager';
 import type { App, Editor } from 'obsidian';
-import type { MentionDecorator } from '../../src/command-palette/MentionDecorator';
+import { TFile } from 'obsidian';
+import type { MentionDecorator } from '../../src/mention/MentionDecorator';
 
 // Mock window.crypto.randomUUID
 const mockUUID = '123e4567-e89b-12d3-a456-426614174000';
@@ -27,7 +28,12 @@ describe('InlineChatManager', () => {
     let mockWorkspace: any;
     let mockMentionDecorator: MentionDecorator;
 
-    beforeEach(() => {
+    beforeEach(async () => {
+        // Reset singletons to ensure clean state
+        const { ResultWriter } = await import('../../src/services/ResultWriter');
+        (ResultWriter as any).instance = null;
+        (InlineChatManager as any).instance = null;
+
         // Create mock workspace
         mockWorkspace = {
             on: () => { },
@@ -69,8 +75,8 @@ describe('InlineChatManager', () => {
         // Clear notice calls
         mockNoticeConstructor.length = 0;
 
-        // Create manager
-        manager = new InlineChatManager(mockApp, mockMentionDecorator);
+        // Create manager using getInstance
+        manager = InlineChatManager.getInstance(mockApp, mockMentionDecorator);
     });
 
     afterEach(() => {
@@ -239,10 +245,7 @@ describe('InlineChatManager', () => {
                 // Verify state is NOT reset (kept until completion detected)
                 expect((manager as any).currentMention).not.toBeNull();
                 expect((manager as any).currentEditor).not.toBeNull();
-                expect((manager as any).originalMentionText).toBe('@betty');
-                expect((manager as any).mentionLineNumber).toBe(5);
                 expect((manager as any).markerId).toBe(markerId);
-                expect((manager as any).currentUserMessage).toBe('test message');
             });
         });
 
@@ -563,10 +566,10 @@ describe('InlineChatManager', () => {
                 ].join('\n');
 
                 let modifiedContent: string | null = null;
-                const mockFile = { path: 'test.md' };
+                const mockFile = new (TFile as any)('test.md');
                 const mockVault = {
                     ...mockApp.vault,
-                    getAbstractFileByPath: () => mockFile,
+                    getAbstractFileByPath: (path: string) => mockFile,
                     read: async () => fileContent,
                     modify: async (file: any, content: string) => {
                         modifiedContent = content;
@@ -595,7 +598,7 @@ describe('InlineChatManager', () => {
                 ].join('\n');
 
                 let modifiedContent: string | null = null;
-                const mockFile = { path: 'test.md' };
+                const mockFile = new (TFile as any)('test.md');
                 const mockVault = {
                     ...mockApp.vault,
                     getAbstractFileByPath: () => mockFile,
@@ -619,7 +622,7 @@ describe('InlineChatManager', () => {
                 const cleanedFiles: string[] = [];
                 const mockVault = {
                     ...mockApp.vault,
-                    getAbstractFileByPath: (path: string) => ({ path }),
+                    getAbstractFileByPath: (path: string) => new (TFile as any)(path),
                     read: async (file: any) => {
                         if (file.path === 'file1.md') {
                             return '<!-- spark-inline-chat:pending:uuid:betty:msg -->\n\n<!-- /spark-inline-chat -->';
@@ -697,16 +700,8 @@ describe('InlineChatManager', () => {
                 const cleanedFiles: string[] = [];
 
                 const mockFiles = [
-                    {
-                        path: 'file1.md',
-                        basename: 'file1',
-                        extension: 'md',
-                    },
-                    {
-                        path: 'file2.md',
-                        basename: 'file2',
-                        extension: 'md',
-                    },
+                    new (TFile as any)('file1.md'),
+                    new (TFile as any)('file2.md'),
                 ];
 
                 const mockVault = {
@@ -738,8 +733,8 @@ describe('InlineChatManager', () => {
                 const cleanedFiles: string[] = [];
 
                 const mockFiles = [
-                    { path: 'temp-markers.md', basename: 'temp-markers', extension: 'md' },
-                    { path: 'daemon-markers.md', basename: 'daemon-markers', extension: 'md' },
+                    new (TFile as any)('temp-markers.md'),
+                    new (TFile as any)('daemon-markers.md'),
                 ];
 
                 const mockVault = {
@@ -769,8 +764,8 @@ describe('InlineChatManager', () => {
 
             it('should not fail if a file cannot be read', async () => {
                 const mockFiles = [
-                    { path: 'good.md', basename: 'good', extension: 'md' },
-                    { path: 'bad.md', basename: 'bad', extension: 'md' },
+                    new (TFile as any)('good.md'),
+                    new (TFile as any)('bad.md'),
                 ];
 
                 const mockVault = {
@@ -793,13 +788,10 @@ describe('InlineChatManager', () => {
         });
 
         describe('Stale chat timeout cleanup', () => {
-            it('should clean up markers from file', async () => {
+            it('should clean up markers from file via ResultWriter', async () => {
+                const { ResultWriter } = await import('../../src/services/ResultWriter');
                 let modifiedContent: string | null = null;
-                const mockFile = {
-                    path: 'stale.md',
-                    basename: 'stale',
-                    extension: 'md',
-                };
+                const mockFile = new (TFile as any)('stale.md');
 
                 const fileContent = '<!-- spark-inline-chat:pending:uuid:betty:msg -->\n\n<!-- /spark-inline-chat -->';
 
@@ -817,8 +809,8 @@ describe('InlineChatManager', () => {
 
                 manager.initialize();
 
-                // Directly call cleanup method to test marker removal
-                await (manager as any).cleanupMarkersFromFile('stale.md');
+                // Use the same ResultWriter instance that was just reset
+                await ResultWriter.getInstance(mockApp).cleanupMarkersFromFile('stale.md');
 
                 expect(modifiedContent).toBe('');
             });

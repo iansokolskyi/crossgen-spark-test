@@ -1,6 +1,8 @@
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
 import { App, SuggestModal, TFile } from 'obsidian';
+import { MENTION_REGEX, COMMAND_REGEX } from '../constants';
+import { ResourceService } from '../services/ResourceService';
 
 /**
  * Token types that can be decorated
@@ -13,34 +15,83 @@ type TokenType = 'agent' | 'file' | 'folder' | 'command';
  */
 export class MentionDecorator {
 	private app: App;
-	private validAgents: Set<string> = new Set();
-	private validCommands: Set<string> = new Set();
+	private resourceService: ResourceService;
 	private observer: MutationObserver | null = null;
+	private plugin?: { chatManager?: { openChatWithAgent: (agentName: string) => void } };
 
-	constructor(app: App) {
+	constructor(
+		app: App,
+		plugin?: { chatManager?: { openChatWithAgent: (agentName: string) => void } }
+	) {
 		this.app = app;
+		this.resourceService = ResourceService.getInstance(app);
+		this.plugin = plugin;
 	}
 
 	/**
-	 * Initialize the decorator by loading agents and commands
+	 * Initialize the decorator by pre-loading agents and commands into cache
 	 * Must be called before createExtension()
 	 */
 	async initialize(): Promise<void> {
-		await this.loadValidAgents();
-		await this.loadValidCommands();
+		// Pre-load agents and commands into service caches
+		await this.resourceService.loadAgents();
+		await this.resourceService.loadCommands();
 	}
 
 	/**
-	 * Refresh the decorator by reloading agents and commands
+	 * Refresh the decorator by invalidating and reloading agents and commands
 	 * Called automatically when command palette opens
 	 */
 	async refresh(): Promise<void> {
-		await this.loadValidAgents();
-		await this.loadValidCommands();
+		// Invalidate and reload caches
+		this.resourceService.invalidateCache();
+		await this.resourceService.loadAgents();
+		await this.resourceService.loadCommands();
 		// Trigger re-decoration of all elements
 		this.processAllElements();
 		// Force all open markdown editors to update their CodeMirror decorations
 		this.forceEditorUpdates();
+	}
+
+	/**
+	 * Decorate mentions and commands in plain text content
+	 * Returns HTML string with styled spans for valid mentions/commands
+	 */
+	public decorateText(content: string): string {
+		// Escape HTML
+		let html = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+		// Decorate @mentions (avoid emails - at start OR not preceded by email chars)
+		html = html.replace(new RegExp(MENTION_REGEX), (match, prefix, mention) => {
+			const type = this.resourceService.validateMentionType(mention);
+			if (type) {
+				return `${prefix}<span class="spark-token spark-token-${type}" data-token="${mention}" data-type="${type}">${mention}</span>`;
+			}
+			return match; // Not a valid mention, keep as-is
+		});
+
+		// Decorate /commands
+		html = html.replace(new RegExp(COMMAND_REGEX), (match, command) => {
+			const type = this.resourceService.validateCommandType(command);
+			if (type) {
+				return match.replace(
+					command,
+					`<span class="spark-token spark-token-command" data-token="${command}" data-type="command">${command}</span>`
+				);
+			}
+			return match; // Not a valid command, keep as-is
+		});
+
+		return html;
+	}
+
+	/**
+	 * Decorate mentions/commands in an HTML element
+	 * Public API for decorating rendered HTML content (e.g., markdown-rendered text)
+	 */
+	public decorateElement(element: HTMLElement): void {
+		// Reuse the existing processTableCell logic which handles DOM walking and decoration
+		this.processTableCell(element);
 	}
 
 	/**
@@ -54,62 +105,6 @@ export class MentionDecorator {
 				leaf.view.editor.cm.dispatch({});
 			}
 		});
-	}
-
-	/**
-	 * Load list of valid agents for validation
-	 */
-	private async loadValidAgents() {
-		try {
-			// Clear existing agents to refresh the list
-			this.validAgents.clear();
-
-			const agentsFolderExists = await this.app.vault.adapter.exists('.spark/agents');
-			if (!agentsFolderExists) {
-				console.error('Spark: .spark/agents folder does not exist');
-				return;
-			}
-
-			const agentsFolder = await this.app.vault.adapter.list('.spark/agents');
-			for (const file of agentsFolder.files) {
-				const basename = file.replace('.spark/agents/', '').replace('.md', '');
-				// Skip README files
-				if (basename.toLowerCase() === 'readme') {
-					continue;
-				}
-				this.validAgents.add(basename);
-			}
-		} catch (error) {
-			console.error('Spark: Failed to load agents', error);
-		}
-	}
-
-	/**
-	 * Load list of valid commands for validation
-	 */
-	private async loadValidCommands() {
-		try {
-			// Clear existing commands to refresh the list
-			this.validCommands.clear();
-
-			const commandsFolderExists = await this.app.vault.adapter.exists('.spark/commands');
-			if (!commandsFolderExists) {
-				console.error('Spark: .spark/commands folder does not exist');
-				return;
-			}
-
-			const commandsFolder = await this.app.vault.adapter.list('.spark/commands');
-			for (const file of commandsFolder.files) {
-				const basename = file.replace('.spark/commands/', '').replace('.md', '');
-				// Skip README files
-				if (basename.toLowerCase() === 'readme') {
-					continue;
-				}
-				this.validCommands.add(basename);
-			}
-		} catch (error) {
-			console.error('Spark: Failed to load commands', error);
-		}
 	}
 
 	/**
@@ -257,10 +252,10 @@ export class MentionDecorator {
 		const tokens: Array<{ text: string; start: number; end: number; type: TokenType | null }> = [];
 
 		// Find @mentions
-		const mentionRegex = /(@[\w-]+\/?)/g;
+		const mentionRegex = new RegExp(MENTION_REGEX);
 		let match;
 		while ((match = mentionRegex.exec(text)) !== null) {
-			const mention = match[0];
+			const mention = match[2]; // Group 2 is the mention
 			const type = this.validateMention(mention);
 			tokens.push({
 				text: mention,
@@ -271,7 +266,7 @@ export class MentionDecorator {
 		}
 
 		// Find /commands
-		const commandRegex = /(?:^|\s)(\/[\w-]+)/g;
+		const commandRegex = new RegExp(COMMAND_REGEX);
 		while ((match = commandRegex.exec(text)) !== null) {
 			const command = match[1]; // Group 1 is the command without leading space
 			const type = this.validateCommand(command);
@@ -289,25 +284,29 @@ export class MentionDecorator {
 	}
 
 	/**
-	 * Validate and determine mention type
+	 * Validate and determine mention type (agent/file/folder)
+	 * Public method used by decoration builder
 	 */
-	private validateMention(mention: string): TokenType | null {
+	public validateMention(mention: string): TokenType | null {
 		const isFolder = mention.endsWith('/');
+		const basename = mention.substring(1); // Remove @
 
 		if (isFolder) {
-			const folderPath = mention.substring(1);
+			const folderPath = basename;
 			const folderExists = this.app.vault
 				.getMarkdownFiles()
 				.some(f => f.path.startsWith(folderPath));
 			return folderExists ? 'folder' : null;
 		} else {
-			const basename = mention.substring(1);
 			const fileExists = this.app.vault.getMarkdownFiles().some(f => f.basename === basename);
-
 			if (fileExists) {
 				return 'file';
-			} else if (this.validAgents.has(basename)) {
-				return 'agent';
+			} else {
+				// Use service cache - cache is pre-loaded in initialize/refresh
+				const agentNames = this.resourceService['validAgentsCache'];
+				if (agentNames && agentNames.has(basename)) {
+					return 'agent';
+				}
 			}
 		}
 
@@ -316,10 +315,13 @@ export class MentionDecorator {
 
 	/**
 	 * Validate and determine if command exists
+	 * Public method used by decoration builder
 	 */
-	private validateCommand(command: string): TokenType | null {
+	public validateCommand(command: string): TokenType | null {
 		const commandName = command.substring(1); // Remove /
-		return this.validCommands.has(commandName) ? 'command' : null;
+		// Use service cache - cache is pre-loaded in initialize/refresh
+		const commandNames = this.resourceService['validCommandsCache'];
+		return commandNames && commandNames.has(commandName) ? 'command' : null;
 	}
 
 	/**
@@ -335,29 +337,80 @@ export class MentionDecorator {
 	}
 
 	/**
+	 * Build decorations for all tokens (mentions and commands) in the document
+	 */
+	private buildDecorations(view: EditorView): DecorationSet {
+		const builder = new RangeSetBuilder<Decoration>();
+		const doc = view.state.doc;
+
+		for (let i = 0; i < doc.length; ) {
+			const line = doc.lineAt(i);
+			const text = line.text;
+
+			// Find all @mentions
+			const mentionRegex = new RegExp(MENTION_REGEX);
+			let match;
+			while ((match = mentionRegex.exec(text)) !== null) {
+				const mention = match[2]; // Group 2 is the mention
+				const type = this.validateMention(mention);
+
+				if (type) {
+					const from = line.from + match.index;
+					const to = from + mention.length;
+					const decoration = Decoration.mark({
+						class: `spark-token spark-token-${type}`,
+						attributes: {
+							'data-token': mention,
+							'data-type': type,
+						},
+					});
+					builder.add(from, to, decoration);
+				}
+			}
+
+			// Find all /commands (only at start of line or after whitespace)
+			const commandRegex = new RegExp(COMMAND_REGEX);
+			while ((match = commandRegex.exec(text)) !== null) {
+				const command = match[1];
+				const type = this.validateCommand(command);
+
+				if (type) {
+					const from = line.from + match.index + (match[0].length - command.length);
+					const to = from + command.length;
+					const decoration = Decoration.mark({
+						class: `spark-token spark-token-command`,
+						attributes: {
+							'data-token': command,
+							'data-type': 'command',
+						},
+					});
+					builder.add(from, to, decoration);
+				}
+			}
+
+			i = line.to + 1;
+		}
+
+		return builder.finish();
+	}
+
+	/**
 	 * Create the editor extension for CodeMirror
 	 */
 	createExtension() {
-		const app = this.app;
-		const validAgents = this.validAgents;
-		const validCommands = this.validCommands;
+		const mentionDecorator = this;
 
 		return ViewPlugin.fromClass(
 			class {
 				decorations: DecorationSet;
 
 				constructor(view: EditorView) {
-					this.decorations = buildMentionDecorations(view, app, validAgents, validCommands);
+					this.decorations = mentionDecorator.buildDecorations(view);
 				}
 
 				update(update: ViewUpdate) {
 					if (update.docChanged || update.viewportChanged) {
-						this.decorations = buildMentionDecorations(
-							update.view,
-							app,
-							validAgents,
-							validCommands
-						);
+						this.decorations = mentionDecorator.buildDecorations(update.view);
 					}
 				}
 			},
@@ -366,98 +419,62 @@ export class MentionDecorator {
 			}
 		);
 	}
-}
 
-/**
- * Build decorations for all tokens (mentions and commands) in the document
- */
-function buildMentionDecorations(
-	view: EditorView,
-	app: App,
-	validAgents: Set<string>,
-	validCommands: Set<string>
-): DecorationSet {
-	const builder = new RangeSetBuilder<Decoration>();
-	const doc = view.state.doc;
+	/**
+	 * Handle clicks on mentions
+	 */
+	public handleMentionClick(event: MouseEvent) {
+		const target = event.target as HTMLElement;
 
-	// Helper to validate mentions
-	const validateMention = (mention: string): TokenType | null => {
-		const isFolder = mention.endsWith('/');
-		if (isFolder) {
-			const folderPath = mention.substring(1);
-			const folderExists = app.vault.getMarkdownFiles().some(f => f.path.startsWith(folderPath));
-			return folderExists ? 'folder' : null;
+		if (!target.classList.contains('spark-token')) {
+			return;
+		}
+
+		const token = target.getAttribute('data-token');
+		const type = target.getAttribute('data-type');
+
+		if (!token) return;
+
+		// Handle commands differently
+		if (type === 'command') {
+			console.debug('Command clicked:', token);
+			// TODO: Show command documentation or execute command
+			return;
+		}
+
+		// Check if Cmd (Mac) or Ctrl (Windows/Linux) is pressed
+		const newTab = event.metaKey || event.ctrlKey;
+
+		// Remove the @ prefix for mentions
+		const path = token.substring(1);
+
+		if (type === 'folder') {
+			// For folders, show a file picker
+			const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(path));
+			if (files.length > 0) {
+				new FolderFileSuggestModal(this.app, files, newTab).open();
+			}
+		} else if (type === 'agent') {
+			// For agent mentions, open chat with the agent pre-mentioned
+			if (this.plugin?.chatManager) {
+				this.plugin.chatManager.openChatWithAgent(path);
+			}
+			return;
 		} else {
-			const basename = mention.substring(1);
-			const fileExists = app.vault.getMarkdownFiles().some(f => f.basename === basename);
-			if (fileExists) {
-				return 'file';
-			} else if (validAgents.has(basename)) {
-				return 'agent';
-			}
-		}
-		return null;
-	};
-
-	// Helper to validate commands
-	const validateCommand = (command: string): TokenType | null => {
-		const commandName = command.substring(1); // Remove /
-		return validCommands.has(commandName) ? 'command' : null;
-	};
-
-	for (let i = 0; i < doc.length; ) {
-		const line = doc.lineAt(i);
-		const text = line.text;
-
-		// Find all @mentions
-		const mentionRegex = /(@[\w-]+\/?)/g;
-		let match;
-		while ((match = mentionRegex.exec(text)) !== null) {
-			const mention = match[0];
-			const type = validateMention(mention);
-
-			if (type) {
-				const from = line.from + match.index;
-				const to = from + mention.length;
-				const decoration = Decoration.mark({
-					class: `spark-token spark-token-${type}`,
-					attributes: {
-						'data-token': mention,
-						'data-type': type,
-					},
-				});
-				builder.add(from, to, decoration);
+			// For file mentions
+			const file = this.app.vault.getMarkdownFiles().find(f => f.basename === path);
+			if (file) {
+				const leaf = newTab ? this.app.workspace.getLeaf('tab') : this.app.workspace.getLeaf();
+				void leaf.openFile(file);
 			}
 		}
 
-		// Find all /commands (only at start of line or after whitespace)
-		const commandRegex = /(?:^|\s)(\/[\w-]+)/g;
-		while ((match = commandRegex.exec(text)) !== null) {
-			const command = match[1];
-			const type = validateCommand(command);
-
-			if (type) {
-				const from = line.from + match.index + (match[0].length - command.length);
-				const to = from + command.length;
-				const decoration = Decoration.mark({
-					class: `spark-token spark-token-command`,
-					attributes: {
-						'data-token': command,
-						'data-type': 'command',
-					},
-				});
-				builder.add(from, to, decoration);
-			}
-		}
-
-		i = line.to + 1;
+		event.preventDefault();
 	}
-
-	return builder.finish();
 }
 
 /**
- * Modal to select a file from a folder
+ * Folder file suggest modal for selecting files from a folder
  */
 class FolderFileSuggestModal extends SuggestModal<TFile> {
 	private files: TFile[];
@@ -469,79 +486,16 @@ class FolderFileSuggestModal extends SuggestModal<TFile> {
 		this.newTab = newTab;
 	}
 
-	getSuggestions(query: string): TFile[] {
-		const lowerQuery = query.toLowerCase();
-		return this.files.filter(
-			file =>
-				file.basename.toLowerCase().includes(lowerQuery) ||
-				file.path.toLowerCase().includes(lowerQuery)
-		);
+	getSuggestions(_query: string): TFile[] {
+		return this.files;
 	}
 
-	renderSuggestion(file: TFile, el: HTMLElement) {
-		el.createDiv({ text: file.basename, cls: 'suggestion-title' });
-		el.createDiv({ text: file.path, cls: 'suggestion-note' });
+	renderSuggestion(file: TFile, el: HTMLElement): void {
+		el.createEl('div', { text: file.path });
 	}
 
-	onChooseSuggestion(file: TFile) {
+	onChooseSuggestion(file: TFile, _evt: MouseEvent | KeyboardEvent): void {
 		const leaf = this.newTab ? this.app.workspace.getLeaf('tab') : this.app.workspace.getLeaf();
 		void leaf.openFile(file);
 	}
-}
-
-/**
- * Handle clicks on mentions
- */
-export function handleMentionClick(
-	app: App,
-	event: MouseEvent,
-	plugin?: { chatManager?: { openChatWithAgent: (agentName: string) => void } }
-) {
-	const target = event.target as HTMLElement;
-
-	if (!target.classList.contains('spark-token')) {
-		return;
-	}
-
-	const token = target.getAttribute('data-token');
-	const type = target.getAttribute('data-type');
-
-	if (!token) return;
-
-	// Handle commands differently
-	if (type === 'command') {
-		console.debug('Command clicked:', token);
-		// TODO: Show command documentation or execute command
-		return;
-	}
-
-	// Check if Cmd (Mac) or Ctrl (Windows/Linux) is pressed
-	const newTab = event.metaKey || event.ctrlKey;
-
-	// Remove the @ prefix for mentions
-	const path = token.substring(1);
-
-	if (type === 'folder') {
-		// For folders, show a file picker
-		const files = app.vault.getMarkdownFiles().filter(f => f.path.startsWith(path));
-		if (files.length > 0) {
-			new FolderFileSuggestModal(app, files, newTab).open();
-		}
-	} else if (type === 'agent') {
-		// For agent mentions, open chat with the agent pre-mentioned
-		if (plugin && plugin.chatManager) {
-			plugin.chatManager.openChatWithAgent(path);
-			event.preventDefault();
-		}
-		return;
-	} else {
-		// For file mentions
-		const file = app.vault.getMarkdownFiles().find(f => f.basename === path);
-		if (file) {
-			const leaf = newTab ? app.workspace.getLeaf('tab') : app.workspace.getLeaf();
-			void leaf.openFile(file);
-		}
-	}
-
-	event.preventDefault();
 }

@@ -6,13 +6,14 @@ import { FuzzyMatcher } from './FuzzyMatcher';
 import { PaletteView } from './PaletteView';
 import { CoordinateDetector } from './CoordinateDetector';
 import { TriggerDetector } from './TriggerDetector';
-import { MentionDecorator } from './MentionDecorator';
+import { MentionDecorator } from '../mention/MentionDecorator';
 
 /**
  * Orchestrates the command palette functionality
  * Handles trigger detection, item loading, and palette display
  */
 export class CommandPaletteManager {
+	private static instance: CommandPaletteManager;
 	private plugin: ISparkPlugin;
 	private activeTrigger: TriggerContext | null = null;
 	private cachedItems: PaletteItem[] | null = null;
@@ -28,7 +29,7 @@ export class CommandPaletteManager {
 	private paletteSelectHandler: EventListener;
 	private clickOutsideHandler: EventListener;
 
-	constructor(plugin: ISparkPlugin, mentionDecorator?: MentionDecorator) {
+	private constructor(plugin: ISparkPlugin, mentionDecorator?: MentionDecorator) {
 		this.plugin = plugin;
 		this.mentionDecorator = mentionDecorator || null;
 		this.itemLoader = new ItemLoader(plugin.app);
@@ -44,6 +45,16 @@ export class CommandPaletteManager {
 		this.clickOutsideHandler = ((evt: MouseEvent) => {
 			this.handleClickOutside(evt);
 		}) as EventListener;
+	}
+
+	public static getInstance(
+		plugin: ISparkPlugin,
+		mentionDecorator?: MentionDecorator
+	): CommandPaletteManager {
+		if (!CommandPaletteManager.instance) {
+			CommandPaletteManager.instance = new CommandPaletteManager(plugin, mentionDecorator);
+		}
+		return CommandPaletteManager.instance;
 	}
 
 	/**

@@ -2,10 +2,13 @@ import { App, Component } from 'obsidian';
 import { ChatMessage, ChatState } from './types';
 import SparkPlugin from '../main';
 import { ConversationStorage } from './ConversationStorage';
-import { MentionInput } from './MentionInput';
+import { MentionInput } from '../mention/MentionInput';
 import { ChatSelector } from './ChatSelector';
 import { ChatQueue } from './ChatQueue';
 import { ChatResultWatcher, ChatResult } from './ChatResultWatcher';
+import { ResourceService } from '../services/ResourceService';
+import { MENTION_REGEX } from '../constants';
+import { MentionDecorator } from '../mention/MentionDecorator';
 
 export class ChatWindow extends Component {
 	private app: App;
@@ -15,11 +18,12 @@ export class ChatWindow extends Component {
 	private inputEl: HTMLDivElement | null = null;
 	private titleEl: HTMLElement;
 	private conversationStorage: ConversationStorage;
+	private resourceService: ResourceService;
+	private mentionDecorator: MentionDecorator;
 	private mentionInput: MentionInput | null = null;
 	private chatSelector: ChatSelector;
 	private chatQueue: ChatQueue;
 	private resultWatcher: ChatResultWatcher;
-	private validAgents: Set<string> = new Set();
 	private resizeHandles: Map<string, HTMLElement> = new Map();
 	private isResizing = false;
 	private resizeStartX = 0;
@@ -43,6 +47,8 @@ export class ChatWindow extends Component {
 		this.app = app;
 		this.plugin = plugin;
 		this.conversationStorage = conversationStorage;
+		this.resourceService = ResourceService.getInstance(app);
+		this.mentionDecorator = plugin.mentionDecorator;
 		this.chatQueue = new ChatQueue(app);
 		this.resultWatcher = new ChatResultWatcher(app);
 		this.chatSelector = new ChatSelector(
@@ -54,7 +60,6 @@ export class ChatWindow extends Component {
 	}
 
 	async onload() {
-		await this.loadValidAgents();
 		this.createChatWindow();
 		this.setupEventListeners();
 		this.setupResultWatcher();
@@ -84,32 +89,6 @@ export class ChatWindow extends Component {
 			this.updateChatTitle();
 			this.chatSelector.update(this.state.conversationId);
 			this.chatSelector.invalidateCache();
-		}
-	}
-
-	/**
-	 * Load list of valid agents for validation
-	 */
-	private async loadValidAgents(): Promise<void> {
-		try {
-			this.validAgents.clear();
-			const agentsFolderExists = await this.app.vault.adapter.exists('.spark/agents');
-			if (!agentsFolderExists) {
-				console.error('[ChatWindow] .spark/agents folder does not exist');
-				return;
-			}
-
-			const agentsFolder = await this.app.vault.adapter.list('.spark/agents');
-			for (const file of agentsFolder.files) {
-				const basename = file.replace('.spark/agents/', '').replace('.md', '');
-				// Skip README files
-				if (basename.toLowerCase() === 'readme') {
-					continue;
-				}
-				this.validAgents.add(basename);
-			}
-		} catch (error) {
-			console.error('[ChatWindow] Failed to load agents:', error);
 		}
 	}
 
@@ -717,14 +696,14 @@ export class ChatWindow extends Component {
 			void this.renderMarkdown(message.content, contentEl);
 			// Add click handler for mentions in agent responses
 			contentEl.addEventListener('click', (e: MouseEvent) => {
-				this.handleMessageClick(e);
+				this.mentionDecorator.handleMentionClick(e);
 			});
 		} else {
 			// User messages with mention decoration
-			contentEl.innerHTML = this.decorateMentions(message.content);
+			contentEl.innerHTML = this.mentionDecorator.decorateText(message.content);
 			// Add click handler for mentions in user messages
 			contentEl.addEventListener('click', (e: MouseEvent) => {
-				this.handleMessageClick(e);
+				this.mentionDecorator.handleMentionClick(e);
 			});
 		}
 
@@ -740,7 +719,7 @@ export class ChatWindow extends Component {
 	private async extractAgentNames(content: string): Promise<string[]> {
 		const agentNames: string[] = [];
 		// Match @mentions including hyphens and folder slashes (same pattern as decorateMentions)
-		const mentionMatches = content.match(/@([\w-]+\/?)/g) || [];
+		const mentionMatches = content.match(MENTION_REGEX) || [];
 
 		for (const match of mentionMatches) {
 			const name = match.substring(1); // Remove @
@@ -751,10 +730,8 @@ export class ChatWindow extends Component {
 				continue; // Skip folders
 			}
 
-			// Check if it's a valid agent (exists in .spark/agents/)
-			// Following daemon's pattern: try agent first
-			const agentPath = `.spark/agents/${name}.md`;
-			const isAgent = await this.app.vault.adapter.exists(agentPath);
+			// Check if it's a valid agent using ResourceService
+			const isAgent = await this.resourceService.validateAgent(name);
 
 			// Only add to chat title if it's an actual agent
 			if (isAgent) {
@@ -765,264 +742,15 @@ export class ChatWindow extends Component {
 		return agentNames;
 	}
 
-	private decorateMentions(content: string): string {
-		// Escape HTML
-		let html = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-		// Decorate @mentions (avoid emails - at start OR not preceded by email chars)
-		html = html.replace(/(^|(?<![a-zA-Z0-9._]))(@[\w-]+\/?)/g, (match, prefix, mention) => {
-			const type = this.validateMention(mention);
-			if (type) {
-				return `${prefix}<span class="spark-token spark-token-${type}" data-token="${mention}" data-type="${type}">${mention}</span>`;
-			}
-			return match; // Not a valid mention, keep as-is
-		});
-
-		// Decorate /commands
-		html = html.replace(/(?:^|\s)(\/[\w-]+)/g, (match, command) => {
-			const type = this.validateCommand(command);
-			if (type) {
-				return match.replace(
-					command,
-					`<span class="spark-token spark-token-command" data-token="${command}" data-type="command">${command}</span>`
-				);
-			}
-			return match; // Not a valid command, keep as-is
-		});
-
-		return html;
-	}
-
-	/**
-	 * Validate mention and determine type (agent/file/folder)
-	 * Note: Uses adapter for agents since .spark/ is filtered from getMarkdownFiles()
-	 */
-	private validateMention(mention: string): string | null {
-		const isFolder = mention.endsWith('/');
-		const basename = mention.substring(1); // Remove @
-
-		if (isFolder) {
-			const folderPath = basename;
-			const folderExists = this.app.vault
-				.getMarkdownFiles()
-				.some(f => f.path.startsWith(folderPath));
-			return folderExists ? 'folder' : null;
-		} else {
-			// Check if it's an agent FIRST (using cached list)
-			if (this.validAgents.has(basename)) {
-				return 'agent';
-			}
-
-			// Then check if it's a regular file
-			const fileExists = this.app.vault.getMarkdownFiles().some(f => f.basename === basename);
-
-			if (fileExists) {
-				return 'file';
-			}
-
-			return null;
-		}
-	}
-
-	/**
-	 * Validate command
-	 */
-	private validateCommand(command: string): string | null {
-		const commandName = command.substring(1); // Remove /
-		const commandExists = this.app.vault
-			.getMarkdownFiles()
-			.some(f => f.path === `.spark/commands/${commandName}.md`);
-		return commandExists ? 'command' : null;
-	}
-
-	/**
-	 * Decorate mentions in already-rendered HTML content
-	 * Used for agent responses after markdown rendering
-	 *
-	 * Note: We process the HTML post-render instead of pre-render because:
-	 * - Markdown rendering happens first and produces HTML structure
-	 * - We need to preserve code blocks and other HTML elements
-	 * - TreeWalker allows us to only process text nodes, not HTML tags
-	 * - Mentions are decorated even inside code elements for easy navigation
-	 */
-	private decorateMentionsInElement(element: HTMLElement): void {
-		const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
-		const nodesToProcess: { node: Text; parent: Node }[] = [];
-
-		// Collect text nodes that might contain mentions
-		let currentNode = walker.nextNode();
-		while (currentNode) {
-			if (currentNode.textContent && currentNode.parentNode) {
-				const text = currentNode.textContent;
-				// Only process if contains potential mentions/commands
-				if (text.includes('@') || text.includes('/')) {
-					nodesToProcess.push({
-						node: currentNode as Text,
-						parent: currentNode.parentNode,
-					});
-				}
-			}
-			currentNode = walker.nextNode();
-		}
-
-		// Process collected nodes (done separately to avoid modifying while iterating)
-		for (const { node, parent } of nodesToProcess) {
-			this.decorateTextNode(node, parent);
-		}
-	}
-
-	/**
-	 * Decorate mentions in a single text node
-	 */
-	private decorateTextNode(textNode: Text, parent: Node): void {
-		const text = textNode.textContent || '';
-
-		// Match @mentions at start of string OR not preceded by email characters
-		// Handles both emails (client@company.com) and valid mentions (@alice)
-		const mentionRegex = /(^|(?<![a-zA-Z0-9._]))(@[\w-]+\/?)/g;
-		const commandRegex = /(?:^|\s)(\/[\w-]+)/g;
-
-		// Find all mentions and commands
-		const replacements: Array<{
-			start: number;
-			end: number;
-			text: string;
-			type: string;
-		}> = [];
-
-		let match;
-		while ((match = mentionRegex.exec(text)) !== null) {
-			// Group 2 is the @mention (group 1 is the prefix or start)
-			const mention = match[2];
-			const mentionStart = match.index + match[1].length;
-
-			const type = this.validateMention(mention);
-
-			// Only add if it's a valid mention
-			if (type) {
-				replacements.push({
-					start: mentionStart,
-					end: mentionStart + mention.length,
-					text: mention,
-					type,
-				});
-			}
-		}
-
-		// Reset regex
-		commandRegex.lastIndex = 0;
-		while ((match = commandRegex.exec(text)) !== null) {
-			const command = match[1];
-			const type = this.validateCommand(command);
-
-			// Only add if it's a valid command
-			if (type) {
-				replacements.push({
-					start: match.index + (match[0].length - command.length),
-					end: match.index + match[0].length,
-					text: command,
-					type,
-				});
-			}
-		}
-
-		if (replacements.length === 0) return;
-
-		// Sort by position
-		replacements.sort((a, b) => a.start - b.start);
-
-		// Create fragment with decorated mentions
-		const fragment = document.createDocumentFragment();
-		let lastIndex = 0;
-
-		for (const replacement of replacements) {
-			// Add text before mention
-			if (replacement.start > lastIndex) {
-				fragment.appendChild(document.createTextNode(text.substring(lastIndex, replacement.start)));
-			}
-
-			// Add decorated mention
-			const span = document.createElement('span');
-			span.className = `spark-token spark-token-${replacement.type}`;
-			span.setAttribute('data-token', replacement.text);
-			span.setAttribute('data-type', replacement.type);
-			span.textContent = replacement.text;
-			fragment.appendChild(span);
-
-			lastIndex = replacement.end;
-		}
-
-		// Add remaining text
-		if (lastIndex < text.length) {
-			fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-		}
-
-		// Replace the text node with the fragment
-		parent.replaceChild(fragment, textNode);
-	}
-
-	/**
-	 * Handle clicks on mentions in messages
-	 */
-	private handleMessageClick(event: MouseEvent): void {
-		const target = event.target as HTMLElement;
-
-		if (!target.classList.contains('spark-token')) {
-			return;
-		}
-
-		const token = target.getAttribute('data-token');
-		const type = target.getAttribute('data-type');
-
-		if (!token) return;
-
-		// Handle commands differently
-		if (type === 'command') {
-			// TODO: Show command documentation or execute command
-			return;
-		}
-
-		// Check if Cmd (Mac) or Ctrl (Windows/Linux) is pressed
-		const newTab = event.metaKey || event.ctrlKey;
-
-		// Remove the @ prefix for mentions
-		const path = token.substring(1);
-
-		if (type === 'folder') {
-			// For folders, try to open the folder in file explorer
-			const folder = this.app.vault.getAbstractFileByPath(path);
-			if (folder) {
-				// Reveal folder in file explorer
-				// @ts-expect-error - Using Obsidian internal API
-				this.app.internalPlugins.getPluginById('file-explorer')?.instance?.revealInFolder(folder);
-			}
-		} else {
-			// For file/agent mentions
-			// Try to find as file first
-			const file = this.app.vault.getMarkdownFiles().find(f => f.basename === path);
-			if (file) {
-				const leaf = newTab ? this.app.workspace.getLeaf('tab') : this.app.workspace.getLeaf();
-				void leaf.openFile(file);
-			} else {
-				// Check if it's an agent file
-				const agentFile = this.app.vault
-					.getMarkdownFiles()
-					.find(f => f.path === `.spark/agents/${path}.md`);
-				if (agentFile) {
-					const leaf = newTab ? this.app.workspace.getLeaf('tab') : this.app.workspace.getLeaf();
-					void leaf.openFile(agentFile);
-				}
-			}
-		}
-
-		event.preventDefault();
-	}
-
 	private async renderMarkdown(content: string, containerEl: HTMLElement): Promise<void> {
 		// Fallback to simple markdown-like rendering
 		containerEl.innerHTML = this.simpleMarkdownToHtml(content);
 		// After rendering, decorate mentions in the HTML
-		this.decorateMentionsInElement(containerEl);
+		// Decorate mentions and add click handler
+		this.mentionDecorator.decorateElement(containerEl);
+		containerEl.addEventListener('click', (e: MouseEvent) => {
+			this.mentionDecorator.handleMentionClick(e);
+		});
 	}
 
 	private simpleMarkdownToHtml(markdown: string): string {
@@ -1147,11 +875,11 @@ export class ChatWindow extends Component {
 	 * Used when agent names are updated in settings
 	 *
 	 * Note: We reload from storage to get the updated agent names.
-	 * This runs even if chat is closed to ensure validAgents cache is updated.
 	 */
 	async refreshCurrentChat(): Promise<void> {
-		// Always reload valid agents list (needed for mention decoration)
-		await this.loadValidAgents();
+		// Refresh agent cache for latest agents
+		this.resourceService.invalidateAgentCache();
+		await this.resourceService.loadAgents();
 
 		// Refresh mention input to pick up new agents
 		await this.mentionInput?.refresh();

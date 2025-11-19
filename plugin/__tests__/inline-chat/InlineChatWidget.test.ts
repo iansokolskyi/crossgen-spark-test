@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { InlineChatWidget } from '../../src/inline-chat/InlineChatWidget';
 import type { App } from 'obsidian';
-import type { MentionDecorator } from '../../src/command-palette/MentionDecorator';
+import type { MentionDecorator } from '../../src/mention/MentionDecorator';
 
 // Mock App with necessary methods
 const createMockApp = (): App => {

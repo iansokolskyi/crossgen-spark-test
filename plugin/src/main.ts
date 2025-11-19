@@ -2,9 +2,10 @@ import { Plugin } from 'obsidian';
 import { SparkSettingTab, DEFAULT_SETTINGS } from './settings';
 import { SparkSettings, ISparkPlugin } from './types';
 import { CommandPaletteManager } from './command-palette/CommandPaletteManager';
-import { MentionDecorator, handleMentionClick } from './command-palette/MentionDecorator';
+import { MentionDecorator } from './mention/MentionDecorator';
 import { ChatManager } from './chat/ChatManager';
 import { InlineChatManager } from './inline-chat/InlineChatManager';
+import { ResourceService } from './services/ResourceService';
 
 export default class SparkPlugin extends Plugin implements ISparkPlugin {
     settings: SparkSettings;
@@ -19,21 +20,24 @@ export default class SparkPlugin extends Plugin implements ISparkPlugin {
         // Load settings
         await this.loadSettings();
 
-        // Initialize mention decorator first
-        this.mentionDecorator = new MentionDecorator(this.app);
+        // Initialize ResourceService (start file watchers)
+        ResourceService.getInstance(this.app).initialize();
+
+        // Initialize mention decorator first (with plugin reference for chat integration)
+        this.mentionDecorator = new MentionDecorator(this.app, this);
         await this.mentionDecorator.initialize();
         this.registerEditorExtension(this.mentionDecorator.createExtension());
 
         // Initialize command palette manager with decorator reference
-        this.commandPaletteManager = new CommandPaletteManager(this, this.mentionDecorator);
+        this.commandPaletteManager = CommandPaletteManager.getInstance(this, this.mentionDecorator);
         this.commandPaletteManager.register();
 
         // Initialize chat manager
-        this.chatManager = new ChatManager(this.app, this);
+        this.chatManager = ChatManager.getInstance(this.app, this);
         this.chatManager.initialize();
 
         // Initialize inline chat manager
-        this.inlineChatManager = new InlineChatManager(this.app, this.mentionDecorator);
+        this.inlineChatManager = InlineChatManager.getInstance(this.app, this.mentionDecorator);
         this.inlineChatManager.initialize();
 
         // Register chat hotkey (Cmd+K)
@@ -69,10 +73,8 @@ export default class SparkPlugin extends Plugin implements ISparkPlugin {
 
         // Register click handler for tokens (mentions and commands)
         this.registerDomEvent(document, 'click', (event: MouseEvent) => {
-            handleMentionClick(this.app, event, this);
-        });
-
-        // Add settings tab
+            this.mentionDecorator.handleMentionClick(event);
+        });        // Add settings tab
         this.addSettingTab(new SparkSettingTab(this.app, this));
 
         // Add status bar item

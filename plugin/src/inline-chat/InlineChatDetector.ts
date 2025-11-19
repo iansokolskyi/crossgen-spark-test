@@ -2,10 +2,20 @@
  * Detects agent mentions in editor for inline chat
  */
 
-import type { Editor } from 'obsidian';
+import type { Editor, App } from 'obsidian';
 import type { DetectedAgentMention } from './types';
+import { ResourceService } from '../services/ResourceService';
+import { AGENT_NAME_REGEX } from '../constants';
 
 export class InlineChatDetector {
+	private app: App;
+	private resourceService: ResourceService;
+
+	constructor(app: App) {
+		this.app = app;
+		this.resourceService = ResourceService.getInstance(app);
+	}
+
 	/**
 	 * Detect if cursor is right after an @agent mention on its own line
 	 * Returns agent mention details if detected, null otherwise
@@ -25,8 +35,9 @@ export class InlineChatDetector {
 
 		// Match @agent pattern at end of line
 		// Agent name: starts with letter, can contain letters, numbers, underscores, hyphens
-		const agentPattern = /^@([a-z][a-z0-9_-]*)$/i;
-		const match = beforeCursor.match(agentPattern);
+		// Match @agent pattern at end of line
+		// Agent name: starts with letter, can contain letters, numbers, underscores, hyphens
+		const match = beforeCursor.match(AGENT_NAME_REGEX);
 
 		if (!match) {
 			return null;
@@ -83,9 +94,7 @@ export class InlineChatDetector {
 	 * For now, returns true for any valid agent name format
 	 * TODO: Integrate with agent loader to validate actual agent files
 	 */
-	isValidAgent(agentName: string): boolean {
-		// Basic validation: agent name format
-		const agentPattern = /^[a-z][a-z0-9_-]*$/i;
-		return agentPattern.test(agentName);
+	async isValidAgent(agentName: string): Promise<boolean> {
+		return this.resourceService.validateAgent(agentName);
 	}
 }

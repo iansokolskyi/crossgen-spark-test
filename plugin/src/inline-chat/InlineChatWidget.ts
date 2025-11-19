@@ -4,8 +4,8 @@
 
 import type { App } from 'obsidian';
 import type { WidgetMode } from './types';
-import { MentionInput } from '../chat/MentionInput';
-import type { MentionDecorator } from '../command-palette/MentionDecorator';
+import { MentionInput } from '../mention/MentionInput';
+import type { MentionDecorator } from '../mention/MentionDecorator';
 
 export interface InlineChatWidgetOptions {
 	/** Agent name to display */

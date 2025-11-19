@@ -1,5 +1,6 @@
 import { App } from 'obsidian';
 import { ChatConversation } from './types';
+import { CHAT_FILENAME_REGEX, REGEX_ESCAPE_PATTERN } from '../constants';
 
 export class ConversationStorage {
 	private app: App;
@@ -113,7 +114,7 @@ export class ConversationStorage {
 
 	private extractTimestampFromFilename(filename: string): number {
 		// Handle format: chat-{timestamp}.json
-		const match = filename.match(/chat-(\d+)\.json$/);
+		const match = filename.match(CHAT_FILENAME_REGEX);
 		if (match) {
 			return parseInt(match[1], 10);
 		}
@@ -160,7 +161,7 @@ export class ConversationStorage {
 						// Match @mention followed by non-word character or end of string
 						// This catches spaces, punctuation (including em dash —), or end of line
 						const regex = new RegExp(
-							`@${oldName.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&')}(?=\\W|$)`,
+							`@${oldName.replace(REGEX_ESCAPE_PATTERN, '\\$&')}(?=\\W|$)`,
 							'g'
 						);
 						message.content = message.content.replace(regex, newMention);

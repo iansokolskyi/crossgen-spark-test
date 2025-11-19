@@ -16,9 +16,19 @@ const createMockEditor = (
 
 describe('InlineChatDetector', () => {
     let detector: InlineChatDetector;
+    const mockApp = {
+        vault: {
+            adapter: {
+                exists: async () => false,
+                list: async () => ({ files: [], folders: [] }),
+                read: async () => ''
+            },
+            getMarkdownFiles: () => []
+        }
+    } as any;
 
     beforeEach(() => {
-        detector = new InlineChatDetector();
+        detector = new InlineChatDetector(mockApp);
     });
 
     describe('detectAgentMention', () => {
@@ -193,32 +203,32 @@ describe('InlineChatDetector', () => {
     });
 
     describe('isValidAgent', () => {
-        it('should return true for valid agent name format', () => {
-            // Currently validates format, not actual agent existence
-            expect(detector.isValidAgent('alice')).toBe(true);
-            expect(detector.isValidAgent('bob')).toBe(true);
-            expect(detector.isValidAgent('betty')).toBe(true);
-            expect(detector.isValidAgent('any-valid-name')).toBe(true);
+        it('should return false for agent names (no agents loaded in tests)', async () => {
+            // Since ResourceService has no adapter in tests, no agents are loaded
+            expect(await detector.isValidAgent('alice')).toBe(false);
+            expect(await detector.isValidAgent('bob')).toBe(false);
+            expect(await detector.isValidAgent('betty')).toBe(false);
+            expect(await detector.isValidAgent('any-valid-name')).toBe(false);
         });
 
-        it('should return true for agent names with hyphens and underscores', () => {
-            expect(detector.isValidAgent('agent-one')).toBe(true);
-            expect(detector.isValidAgent('agent_two')).toBe(true);
-            expect(detector.isValidAgent('agent123')).toBe(true);
+        it('should return false for agent names with hyphens and underscores', async () => {
+            expect(await detector.isValidAgent('agent-one')).toBe(false);
+            expect(await detector.isValidAgent('agent_two')).toBe(false);
+            expect(await detector.isValidAgent('agent123')).toBe(false);
         });
 
-        it('should return false for invalid format starting with number', () => {
-            expect(detector.isValidAgent('123agent')).toBe(false);
+        it('should return false for invalid format starting with number', async () => {
+            expect(await detector.isValidAgent('123agent')).toBe(false);
         });
 
-        it('should return false for invalid characters', () => {
-            expect(detector.isValidAgent('agent@name')).toBe(false);
-            expect(detector.isValidAgent('agent name')).toBe(false);
-            expect(detector.isValidAgent('agent.name')).toBe(false);
+        it('should return false for invalid characters', async () => {
+            expect(await detector.isValidAgent('agent@name')).toBe(false);
+            expect(await detector.isValidAgent('agent name')).toBe(false);
+            expect(await detector.isValidAgent('agent.name')).toBe(false);
         });
 
-        it('should return false for empty string', () => {
-            expect(detector.isValidAgent('')).toBe(false);
+        it('should return false for empty string', async () => {
+            expect(await detector.isValidAgent('')).toBe(false);
         });
     });
 });

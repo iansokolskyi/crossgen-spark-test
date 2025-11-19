@@ -8,7 +8,13 @@ import { Notice } from 'obsidian';
 import { InlineChatDetector } from './InlineChatDetector';
 import { InlineChatWidget } from './InlineChatWidget';
 import type { DetectedAgentMention } from './types';
-import type { MentionDecorator } from '../command-palette/MentionDecorator';
+import type { MentionDecorator } from '../mention/MentionDecorator';
+import { ResultWriter } from '../services/ResultWriter';
+import {
+	AGENT_PREFIX_REGEX,
+	INLINE_CHAT_START_MARKER_REGEX,
+	INLINE_CHAT_PENDING_MARKER_REGEX,
+} from '../constants';
 
 interface PendingChat {
 	uuid: string;
@@ -18,6 +24,7 @@ interface PendingChat {
 }
 
 export class InlineChatManager {
+	private static instance: InlineChatManager;
 	private app: App;
 	private mentionDecorator: MentionDecorator;
 	private detector: InlineChatDetector;
@@ -25,20 +32,23 @@ export class InlineChatManager {
 	private currentMention: DetectedAgentMention | null = null;
 	private currentEditor: Editor | null = null;
 	private editorChangeHandler: ((editor: Editor) => void) | null = null;
-	private originalMentionText: string = ''; // Store original @agent text for restoration
-	private mentionLineNumber: number = -1;
-	private insertedBlankLines: number = 0; // Track how many blank lines we inserted
 	private markerId: string = ''; // Unique ID for this inline chat instance
 	private pendingChats: Map<string, PendingChat> = new Map(); // Track chats waiting for daemon
 	private fileModifyHandler: ((file: TFile) => void) | null = null;
-	private currentUserMessage: string = ''; // Track current user message for processing display
 	private agentMentionCompleteHandler: EventListener | null = null;
 	private currentFilePath: string = ''; // Track current file with active markers
 
-	constructor(app: App, mentionDecorator: MentionDecorator) {
+	private constructor(app: App, mentionDecorator: MentionDecorator) {
 		this.app = app;
 		this.mentionDecorator = mentionDecorator;
-		this.detector = new InlineChatDetector();
+		this.detector = new InlineChatDetector(app);
+	}
+
+	public static getInstance(app: App, mentionDecorator: MentionDecorator): InlineChatManager {
+		if (!InlineChatManager.instance) {
+			InlineChatManager.instance = new InlineChatManager(app, mentionDecorator);
+		}
+		return InlineChatManager.instance;
 	}
 
 	/**
@@ -64,7 +74,7 @@ export class InlineChatManager {
 
 		// Listen for agent mention completion from command palette
 		this.agentMentionCompleteHandler = ((evt: CustomEvent) => {
-			this.handleAgentMentionComplete(evt.detail);
+			void this.handleAgentMentionComplete(evt.detail);
 		}) as EventListener;
 		document.addEventListener('spark-agent-mention-complete', this.agentMentionCompleteHandler);
 
@@ -91,11 +101,11 @@ export class InlineChatManager {
 	 * Handle agent mention completion from command palette
 	 * This is the clear event that triggers inline chat widget
 	 */
-	private handleAgentMentionComplete(detail: {
+	private async handleAgentMentionComplete(detail: {
 		agentName: string;
 		editor: Editor;
 		line: number;
-	}): void {
+	}): Promise<void> {
 		const { agentName, editor, line } = detail;
 
 		console.log('[Spark Inline Chat] Agent mention completed via palette', {
@@ -109,7 +119,7 @@ export class InlineChatManager {
 		}
 
 		// Validate agent
-		if (!this.detector.isValidAgent(agentName)) {
+		if (!(await this.detector.isValidAgent(agentName))) {
 			return;
 		}
 
@@ -189,7 +199,7 @@ export class InlineChatManager {
 				});
 
 				// Clean up markers from the file
-				void this.cleanupMarkersFromFile(chat.filePath);
+				void ResultWriter.getInstance(this.app).cleanupMarkersFromFile(chat.filePath);
 
 				this.pendingChats.delete(uuid);
 			}
@@ -209,10 +219,6 @@ export class InlineChatManager {
 			this.currentFilePath = activeFile.path;
 		}
 
-		// Store original mention text and line number for potential restoration
-		this.mentionLineNumber = mention.line;
-		this.originalMentionText = editor.getLine(mention.line);
-
 		// Generate unique marker ID
 		this.markerId = `spark-inline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -230,7 +236,6 @@ export class InlineChatManager {
 		const insertText = markerStart + blankLines + markerEnd + '\n';
 
 		editor.replaceRange(insertText, insertPosition);
-		this.insertedBlankLines = 9; // start marker + 7 blanks + end marker
 
 		// Wait for DOM to update, then position widget
 		window.setTimeout(() => {
@@ -339,44 +344,7 @@ export class InlineChatManager {
 	 * Clean up markers from document (removes all lines between and including markers)
 	 */
 	private cleanupMarkers(editor: Editor): void {
-		if (!this.markerId) {
-			console.log('[Spark Inline Chat] No marker ID to clean up');
-			return;
-		}
-
-		// Find the start and end marker lines
-		const lineCount = editor.lineCount();
-		let startLine = -1;
-		let endLine = -1;
-
-		for (let i = 0; i < lineCount; i++) {
-			const line = editor.getLine(i);
-			if (line.includes(`${this.markerId}-start`)) {
-				startLine = i;
-			} else if (line.includes(`${this.markerId}-end`)) {
-				endLine = i;
-				break; // Found both, stop searching
-			}
-		}
-
-		console.log('[Spark Inline Chat] Cleanup markers:', {
-			markerId: this.markerId,
-			startLine,
-			endLine,
-			totalLines: lineCount,
-		});
-
-		if (startLine === -1 || endLine === -1) {
-			console.warn('[Spark Inline Chat] Could not find markers to clean up');
-			return;
-		}
-
-		// Remove all lines from start to end (inclusive)
-		// We need to remove from end to start to avoid line number shifting
-		for (let i = endLine; i >= startLine; i--) {
-			editor.replaceRange('', { line: i, ch: 0 }, { line: i + 1, ch: 0 });
-		}
-
+		ResultWriter.getInstance(this.app).cleanupMarkersFromEditor(editor, this.markerId);
 		console.log('[Spark Inline Chat] Cleaned up markers successfully');
 	}
 
@@ -418,8 +386,7 @@ export class InlineChatManager {
 		});
 
 		// Extract clean user message (remove @agent prefix)
-		const cleanMessage = message.replace(/^@\w+\s*/, '').trim();
-		this.currentUserMessage = cleanMessage;
+		const cleanMessage = message.replace(AGENT_PREFIX_REGEX, '').trim();
 
 		// Transform widget to processing state first (so we can measure its height)
 		if (this.activeWidget) {
@@ -434,12 +401,25 @@ export class InlineChatManager {
 					const linesNeeded = Math.ceil(widgetHeight / 22);
 
 					// Replace markers with calculated newlines
-					this.replacMarkersWithFinalFormat(this.currentEditor, message, uuid, linesNeeded);
+					ResultWriter.getInstance(this.app).replaceMarkersWithFinalFormat(
+						this.currentEditor,
+						this.markerId,
+						this.currentMention?.agentName || '',
+						message,
+						uuid,
+						linesNeeded
+					);
 				}
 			}, 10);
 		} else {
 			// Fallback if no widget (shouldn't happen)
-			this.replacMarkersWithFinalFormat(this.currentEditor, message, uuid);
+			ResultWriter.getInstance(this.app).replaceMarkersWithFinalFormat(
+				this.currentEditor,
+				this.markerId,
+				this.currentMention?.agentName || '',
+				message,
+				uuid
+			);
 		}
 
 		// Show notification
@@ -447,78 +427,6 @@ export class InlineChatManager {
 
 		// Don't reset state yet - keep widget visible in processing mode
 		// State will be reset when completion is detected in handleFileModify()
-	}
-
-	/**
-	 * Replace positioning markers with final daemon-readable format
-	 * Converts: <!-- spark-inline-{id}-start --> ... <!-- spark-inline-{id}-end -->
-	 * To: <!-- spark-inline-chat:pending:uuid --> User: message <!-- /spark-inline-chat -->
-	 * Plus empty lines to make space for the widget
-	 */
-	private replacMarkersWithFinalFormat(
-		editor: Editor,
-		userMessage: string,
-		uuid: string,
-		linesNeeded: number = 3
-	): void {
-		if (!this.markerId) {
-			console.warn('[Spark Inline Chat] No marker ID to replace');
-			return;
-		}
-
-		// Find the start and end marker lines
-		const lineCount = editor.lineCount();
-		let startLine = -1;
-		let endLine = -1;
-
-		for (let i = 0; i < lineCount; i++) {
-			const line = editor.getLine(i);
-			if (line.includes(`${this.markerId}-start`)) {
-				startLine = i;
-			} else if (line.includes(`${this.markerId}-end`)) {
-				endLine = i;
-				break;
-			}
-		}
-
-		if (startLine === -1 || endLine === -1) {
-			console.warn('[Spark Inline Chat] Could not find markers to replace');
-			return;
-		}
-
-		// Extract user message (remove @agent prefix if present)
-		const cleanMessage = userMessage.replace(/^@\w+\s*/, '').trim();
-
-		// Build final marker format with agent and user message encoded in the comment
-		// This keeps it hidden from view while still parseable by the daemon
-		// Format: <!-- spark-inline-chat:pending:uuid:agentName:message -->
-		// Escape newlines in message so it fits in a single-line HTML comment
-		const agentName = this.currentMention?.agentName || '';
-		const escapedMessage = cleanMessage.replace(/\n/g, '\\n');
-		const openingMarker = `<!-- spark-inline-chat:pending:${uuid}:${agentName}:${escapedMessage} -->`;
-		const closingMarker = `<!-- /spark-inline-chat -->`;
-
-		// Add newlines to make space for the widget (so it doesn't overlap text)
-		const newlines = '\n'.repeat(Math.max(linesNeeded - 1, 2)); // At least 2 lines
-		const finalContent = `${openingMarker}\n${newlines}${closingMarker}`;
-
-		console.log('[Spark Inline Chat] Replacing markers:', {
-			startLine,
-			endLine,
-			uuid,
-			agentName,
-			markerId: this.markerId,
-			linesNeeded,
-		});
-
-		// Replace all lines between start and end (inclusive) with final format
-		editor.replaceRange(
-			finalContent + '\n',
-			{ line: startLine, ch: 0 },
-			{ line: endLine + 1, ch: 0 }
-		);
-
-		console.log('[Spark Inline Chat] Markers replaced successfully');
 	}
 
 	/**
@@ -550,11 +458,7 @@ export class InlineChatManager {
 	private resetState(): void {
 		this.currentMention = null;
 		this.currentEditor = null;
-		this.originalMentionText = '';
-		this.mentionLineNumber = -1;
-		this.insertedBlankLines = 0;
 		this.markerId = '';
-		this.currentUserMessage = '';
 		this.currentFilePath = '';
 	}
 
@@ -570,51 +474,15 @@ export class InlineChatManager {
 				const content = await this.app.vault.read(file);
 
 				// Check if file has any inline chat markers
-				const hasTempMarkers = /<!--\s*spark-inline-[\w-]+-start\s*-->/.test(content);
-				const hasDaemonMarkers = /<!--\s*spark-inline-chat:pending:/.test(content);
+				const hasTempMarkers = INLINE_CHAT_START_MARKER_REGEX.test(content);
+				const hasDaemonMarkers = INLINE_CHAT_PENDING_MARKER_REGEX.test(content);
 
 				if (hasTempMarkers || hasDaemonMarkers) {
-					await this.cleanupMarkersFromFile(file.path);
+					await ResultWriter.getInstance(this.app).cleanupMarkersFromFile(file.path);
 				}
 			} catch (error) {
 				console.error('[Spark Inline Chat] Error scanning file:', file.path, error);
 			}
-		}
-	}
-
-	/**
-	 * Remove all inline chat markers from a file (both temporary and daemon format)
-	 * This ensures files are never left in a corrupted state
-	 */
-	private async cleanupMarkersFromFile(filePath: string): Promise<void> {
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-		if (!file) {
-			return;
-		}
-
-		try {
-			// Read file content
-			const content = await this.app.vault.read(file as TFile);
-			let modifiedContent = content;
-
-			// Pattern 1: Remove temporary positioning markers and content between them
-			// Format: <!-- spark-inline-{id}-start --> ... <!-- spark-inline-{id}-end -->
-			const tempMarkerPattern =
-				/<!--\s*spark-inline-[\w-]+-start\s*-->\n[\s\S]*?<!--\s*spark-inline-[\w-]+-end\s*-->\n?/g;
-			modifiedContent = modifiedContent.replace(tempMarkerPattern, '');
-
-			// Pattern 2: Remove daemon format markers and content between them
-			// Format: <!-- spark-inline-chat:pending:uuid:agent:message --> ... <!-- /spark-inline-chat -->
-			const daemonMarkerPattern =
-				/<!--\s*spark-inline-chat:pending:[\w-]+:[^>]+\s*-->\n[\s\S]*?<!--\s*\/spark-inline-chat\s*-->\n?/g;
-			modifiedContent = modifiedContent.replace(daemonMarkerPattern, '');
-
-			// Write back if we made changes
-			if (modifiedContent !== content) {
-				await this.app.vault.modify(file as TFile, modifiedContent);
-			}
-		} catch (error) {
-			console.error('[Spark Inline Chat] Error cleaning up markers:', error);
 		}
 	}
 
@@ -628,13 +496,13 @@ export class InlineChatManager {
 
 		// Clean up markers from current file if any
 		if (this.currentFilePath) {
-			await this.cleanupMarkersFromFile(this.currentFilePath);
+			await ResultWriter.getInstance(this.app).cleanupMarkersFromFile(this.currentFilePath);
 		}
 
 		// Clean up markers from all pending chat files
 		const pendingFiles = new Set(Array.from(this.pendingChats.values()).map(chat => chat.filePath));
 		for (const filePath of pendingFiles) {
-			await this.cleanupMarkersFromFile(filePath);
+			await ResultWriter.getInstance(this.app).cleanupMarkersFromFile(filePath);
 		}
 
 		// Unregister editor change handler

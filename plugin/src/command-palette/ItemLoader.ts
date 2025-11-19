@@ -1,5 +1,7 @@
 import { App, TFolder } from 'obsidian';
 import { PaletteItem } from '../types/command-palette';
+import { ResourceService } from '../services/ResourceService';
+import { parseFrontmatter } from '../utils/markdown';
 
 interface ItemConfig {
 	type: PaletteItem['type'];
@@ -13,32 +15,25 @@ interface ItemConfig {
  */
 export class ItemLoader {
 	private app: App;
+	private resourceService: ResourceService;
 
 	constructor(app: App) {
 		this.app = app;
+		this.resourceService = ResourceService.getInstance(app);
 	}
 
 	/**
 	 * Load all commands from .spark/commands/
 	 */
 	async loadCommands(): Promise<PaletteItem[]> {
-		return this.loadFromFolder({
-			type: 'command',
-			folder: '.spark/commands',
-			prefix: '/',
-		});
+		return this.resourceService.loadCommands();
 	}
 
 	/**
 	 * Load all agents from .spark/agents/
 	 */
 	async loadAgents(): Promise<PaletteItem[]> {
-		return this.loadFromFolder({
-			type: 'agent',
-			folder: '.spark/agents',
-			prefix: '@',
-			descriptionField: 'role',
-		});
+		return this.resourceService.loadAgents();
 	}
 
 	/**
@@ -127,7 +122,7 @@ export class ItemLoader {
 		config: ItemConfig
 	): Promise<PaletteItem | null> {
 		const content = await this.app.vault.adapter.read(filePath);
-		const metadata = this.parseFrontmatter(content);
+		const metadata = parseFrontmatter(content);
 		const fileName = this.getFileName(filePath);
 
 		const description =
@@ -184,29 +179,5 @@ export class ItemLoader {
 		}
 
 		return folders;
-	}
-
-	/**
-	 * Parse YAML frontmatter from markdown content
-	 */
-	private parseFrontmatter(content: string): Record<string, string> {
-		const match = content.match(/^---\n([\s\S]*?)\n---/);
-		if (!match) {
-			return {};
-		}
-
-		const metadata: Record<string, string> = {};
-		const lines = match[1].split('\n');
-
-		for (const line of lines) {
-			const colonIndex = line.indexOf(':');
-			if (colonIndex > 0) {
-				const key = line.substring(0, colonIndex).trim();
-				const value = line.substring(colonIndex + 1).trim();
-				metadata[key] = value;
-			}
-		}
-
-		return metadata;
 	}
 }

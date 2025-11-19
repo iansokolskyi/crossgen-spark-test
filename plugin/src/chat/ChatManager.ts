@@ -5,16 +5,24 @@ import { ConversationStorage } from './ConversationStorage';
 import { ChatMessage } from './types';
 
 export class ChatManager {
+	private static instance: ChatManager;
 	private app: App;
 	private plugin: SparkPlugin;
 	private chatWindow: ChatWindow;
 	private conversationStorage: ConversationStorage;
 
-	constructor(app: App, plugin: SparkPlugin) {
+	private constructor(app: App, plugin: SparkPlugin) {
 		this.app = app;
 		this.plugin = plugin;
 		this.conversationStorage = new ConversationStorage(app);
 		this.chatWindow = new ChatWindow(app, plugin, this.conversationStorage);
+	}
+
+	public static getInstance(app: App, plugin: SparkPlugin): ChatManager {
+		if (!ChatManager.instance) {
+			ChatManager.instance = new ChatManager(app, plugin);
+		}
+		return ChatManager.instance;
 	}
 
 	initialize() {

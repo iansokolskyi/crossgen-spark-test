@@ -1,6 +1,6 @@
 import { App } from 'obsidian';
 import { ChatMentionHandler } from './ChatMentionHandler';
-import type { MentionDecorator } from '../command-palette/MentionDecorator';
+import type { MentionDecorator } from './MentionDecorator';
 
 export interface MentionInputOptions {
 	/** Placeholder text */

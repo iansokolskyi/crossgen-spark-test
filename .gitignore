@@ -65,3 +65,6 @@ coverage/
 
 # Claude Code Settings
 .claude/
+
+# Agent
+.agent/

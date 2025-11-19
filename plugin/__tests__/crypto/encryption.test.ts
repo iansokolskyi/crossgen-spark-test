@@ -97,8 +97,10 @@ describe('Encryption', () => {
             const encrypted = encryptSecrets(plaintext);
             const parts = encrypted.split(':');
 
-            // Tamper with encrypted data (flip a bit)
-            const tamperedData = parts[2].slice(0, -1) + 'f';
+            // Tamper with encrypted data (flip a bit) - ensure it's actually different
+            const lastChar = parts[2].slice(-1);
+            const different = lastChar === '0' ? 'f' : '0';
+            const tamperedData = parts[2].slice(0, -1) + different;
             const tampered = `${parts[0]}:${parts[1]}:${tamperedData}`;
 
             expect(() => decryptSecrets(tampered)).toThrow();
@@ -109,8 +111,10 @@ describe('Encryption', () => {
             const encrypted = encryptSecrets(plaintext);
             const parts = encrypted.split(':');
 
-            // Tamper with auth tag
-            const tamperedTag = parts[1].slice(0, -1) + 'f';
+            // Tamper with auth tag - ensure it's actually different
+            const lastChar = parts[1].slice(-1);
+            const different = lastChar === '0' ? 'f' : '0';
+            const tamperedTag = parts[1].slice(0, -1) + different;
             const tampered = `${parts[0]}:${tamperedTag}:${parts[2]}`;
 
             expect(() => decryptSecrets(tampered)).toThrow();
@@ -193,8 +197,10 @@ describe('Encryption', () => {
             const encrypted = encryptSecrets(plaintext);
             const parts = encrypted.split(':');
 
-            // Flip one bit in the encrypted data
-            const tampered = `${parts[0]}:${parts[1]}:${parts[2].slice(0, -1)}0`;
+            // Flip one bit in the encrypted data - ensure it's actually different
+            const lastChar = parts[2].slice(-1);
+            const different = lastChar === '0' ? 'f' : '0';
+            const tampered = `${parts[0]}:${parts[1]}:${parts[2].slice(0, -1)}${different}`;
 
             // Should throw due to failed authentication
             expect(() => decryptSecrets(tampered)).toThrow();

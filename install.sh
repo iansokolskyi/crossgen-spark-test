@@ -254,36 +254,48 @@ chmod +x dist/cli.js
 echo -e "${GREEN}✓ CLI permissions set${NC}"
 
 echo -e "${YELLOW}→ Installing daemon globally...${NC}"
+
+# Check if npm global directory is writable
+NPM_PREFIX=$(npm prefix -g 2>/dev/null || echo "")
+if [ -n "$NPM_PREFIX" ] && [ ! -w "$NPM_PREFIX" ]; then
+    echo -e "${YELLOW}  npm global directory requires sudo, configuring user-level prefix...${NC}"
+    # Configure npm to use user directory for global packages
+    NPM_PREFIX="$HOME/.npm-global"
+    mkdir -p "$NPM_PREFIX"
+    npm config set prefix "$NPM_PREFIX"
+    echo -e "${GREEN}  ✓ Configured npm prefix: $NPM_PREFIX${NC}"
+fi
+
 # Use npm pack + install to ensure files are copied, not symlinked
 TARBALL=$(npm pack --silent)
 npm install -g "$TARBALL"
 rm "$TARBALL"
 
 # Add npm global bin to PATH so spark command is immediately available
-# Use the same directory where node is located (most reliable method)
-NODE_BIN_DIR=$(dirname "$(which node 2>/dev/null)")
-if [ -n "$NODE_BIN_DIR" ]; then
-    export PATH="$NODE_BIN_DIR:$PATH"
+# First check npm global prefix (where spark was installed)
+NPM_PREFIX=$(npm prefix -g 2>/dev/null || echo "")
+if [ -n "$NPM_PREFIX" ] && [ -f "$NPM_PREFIX/bin/spark" ]; then
+    export PATH="$NPM_PREFIX/bin:$PATH"
     echo -e "${GREEN}✓ Daemon installed globally${NC}"
-    echo -e "${BLUE}  Node bin dir: $NODE_BIN_DIR${NC}"
-    
-    # Verify spark was installed
-    if [ -f "$NODE_BIN_DIR/spark" ]; then
-        echo -e "${GREEN}✓ spark binary found at $NODE_BIN_DIR/spark${NC}"
-    else
-        echo -e "${YELLOW}⚠ spark not found in $NODE_BIN_DIR${NC}"
-        echo -e "${BLUE}  Checking npm global bin...${NC}"
-        NPM_PREFIX=$(npm prefix -g 2>/dev/null || echo "")
-        if [ -n "$NPM_PREFIX" ]; then
-            echo -e "${BLUE}  npm prefix -g: $NPM_PREFIX${NC}"
-            if [ -f "$NPM_PREFIX/bin/spark" ]; then
-                export PATH="$NPM_PREFIX/bin:$PATH"
-                echo -e "${GREEN}✓ spark found at $NPM_PREFIX/bin/spark${NC}"
-            fi
-        fi
-    fi
+    echo -e "${BLUE}  npm global bin: $NPM_PREFIX/bin${NC}"
+    echo -e "${GREEN}✓ spark binary found at $NPM_PREFIX/bin/spark${NC}"
 else
-    echo -e "${YELLOW}⚠ Could not detect node bin directory${NC}"
+    # Fallback to node bin directory
+    NODE_BIN_DIR=$(dirname "$(which node 2>/dev/null)")
+    if [ -n "$NODE_BIN_DIR" ]; then
+        export PATH="$NODE_BIN_DIR:$PATH"
+        echo -e "${GREEN}✓ Daemon installed globally${NC}"
+        echo -e "${BLUE}  Node bin dir: $NODE_BIN_DIR${NC}"
+        
+        # Verify spark was installed
+        if [ -f "$NODE_BIN_DIR/spark" ]; then
+            echo -e "${GREEN}✓ spark binary found at $NODE_BIN_DIR/spark${NC}"
+        else
+            echo -e "${YELLOW}⚠ spark not found in $NODE_BIN_DIR${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ Could not detect node bin directory${NC}"
+    fi
 fi
 
 # Final verification
@@ -308,7 +320,6 @@ if [ -n "$SHELL_PROFILE" ]; then
     # Check if nvm is already configured (it should be from nvm installation)
     if grep -q "NVM_DIR" "$SHELL_PROFILE" 2>/dev/null; then
         echo -e "${GREEN}✓ nvm configured in $SHELL_PROFILE${NC}"
-        echo -e "${GREEN}✓ spark command will be available in new shells${NC}"
     else
         # nvm not found - add it manually
         echo -e "${YELLOW}→ Adding nvm to $SHELL_PROFILE...${NC}"
@@ -321,6 +332,23 @@ export NVM_DIR="$HOME/.nvm"
 EOF
         echo -e "${GREEN}✓ nvm added to $SHELL_PROFILE${NC}"
     fi
+    
+    # Check if npm global bin needs to be added to PATH
+    NPM_PREFIX=$(npm prefix -g 2>/dev/null || echo "")
+    if [ -n "$NPM_PREFIX" ] && [ "$NPM_PREFIX" != "/usr/local" ] && [ "$NPM_PREFIX" != "/usr" ]; then
+        # Custom npm prefix (not system default) - add to PATH
+        if ! grep -q "npm-global" "$SHELL_PROFILE" 2>/dev/null; then
+            echo -e "${YELLOW}→ Adding npm global bin to $SHELL_PROFILE...${NC}"
+            cat >> "$SHELL_PROFILE" << EOF
+
+# npm global bin (added by Spark installer)
+export PATH="$NPM_PREFIX/bin:\$PATH"
+EOF
+            echo -e "${GREEN}✓ npm global bin added to PATH${NC}"
+        fi
+    fi
+    
+    echo -e "${GREEN}✓ spark command will be available in new shells${NC}"
     
     # Source the profile to make spark available immediately
     echo -e "${YELLOW}→ Loading shell configuration...${NC}"
